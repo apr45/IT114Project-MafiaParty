@@ -2,60 +2,78 @@ import java.net.*;
 import java.io.*;
 import java.util.*;
 
-public class ServerModerator {
+public class ServerModerator{
     // input and output streams
     static BufferedReader incomingStream = null;
     static PrintWriter outgoingStream = null;
     static String incomingText, outgoingText;
 
     // lists to store player information
-    static ArrayList<String> usernames = new ArrayList<String>();
-    static ArrayList<String> roles = new ArrayList<String>();
-    static ArrayList<String> status = new ArrayList<String>();
+    static public ArrayList<String> usernames = new ArrayList<String>();
+    static public ArrayList<String> roles = new ArrayList<String>();
+    static public ArrayList<String> status = new ArrayList<String>();
+
+    // temp list to store client threads for testing purposes
+    static ArrayList<Thread> clientThreads = new ArrayList<Thread>();
+
+    // list of available roles
+    static final private String[] ROLELIST = {"Mafia", "Civilian"};
+    static private boolean mafiaAssigned = false;
 
     // variable to keep track of votes
     static int voteCount = 0;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException{
         // connection variables
-        int port = 2005;
-        ServerSocket listener;
-        Socket connection = null;
+        final int PORT = 2005;
+        ServerSocket serverSocket = new ServerSocket(PORT);
+        Socket clientSocket = null;
 
-        // list of roles
-        String[] roleList = {"Mafia", "Civilian"};
+        // variable to keep track of number of players
+        int maxPlayers = 3;
+        int playersCount = 0;
 
-        // random number generator for role assignment
-        Random rand = new Random();
-        int randomIndex;
 
-        // wait for connection from client and set up streams
-            // code to handle multiple clients will later be implemented here in a while loop
-        try {
-            listener = new ServerSocket(port);
-            connection = listener.accept();
-            listener.close();
+        // connects client to server until max number of players is reached
+        while (playersCount < maxPlayers) {
+            try {
+                // waits for client connection
+                System.out.println("Waiting connection...");
+                clientSocket = serverSocket.accept();
 
-            outgoingStream = new PrintWriter(connection.getOutputStream(), true);
-            incomingStream = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-        } catch (IOException e) {
-            e.printStackTrace();
+                // creates new thread to handle client connection
+                Thread clientThread = new Thread(new ClientHandler(clientSocket));
+                playersCount += 1;
+                System.out.println("Client " + playersCount + " connected.");
+
+                clientThreads.add(clientThread); // temp code to store client threads for testing purposes
+
+                clientThread.start(); // runs client thread
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
-        // get username from client; assign role and status
-        try{
-            incomingText = incomingStream.readLine();
-            usernames.add(incomingText);
-            randomIndex = rand.nextInt(roleList.length);
-            // code will be updated to prevent duplicate Mafia roles
-                roles.add(roleList[randomIndex]);
-            status.add("Alive");
-            outgoingStream.println(roles.get(roles.size()-1));
-        } catch(Exception e) {
-            e.printStackTrace();
+        // closes server socket once max number of players is reached
+        serverSocket.close();
+        System.out.println("Max number of players reached. No longer accepting connections.");
+
+        // temp code to wait for all client threads to finish
+        for (Thread t : clientThreads) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
-        // gets clients out of waiting room and starts the game
+        // displays list of players, roles, and statuses for testing purposes
+        System.out.println("\nList of players: " + usernames);
+        System.out.println("List of roles: " + roles);
+        System.out.println("List of statuses: " + status);
+    }
+
+/*      // gets clients out of waiting room and starts the game
             // code will later wait for more players to join before starting the game
         outgoingStream.println("NIGHTPHASE");
 
@@ -83,17 +101,63 @@ public class ServerModerator {
             e.printStackTrace();
         } finally {
             try{
-                connection.close();
+                clientSocket.close();
                 incomingStream.close();
                 outgoingStream.close();
             } catch(Exception e){
 
             }
-    }
+        }
 
     }
-    
-     // night phase where Mafia will choose a victim and Civilians will wait
+*/
+    // synchronized method to check for duplicate usernames
+    public synchronized static boolean doubleUsername(String username){
+        // checks if client's username is already in use
+        if (usernames.contains(username)){
+            return true;
+        } else{
+            usernames.add(username); // adds client's username to list of usernames if not already in use
+            return false;
+        }        
+    }
+
+    // synchronized method to set up client's role and status 
+    public static synchronized String setup(String username){
+        // role assignment logic
+            // random number generator
+            Random rand = new Random();
+            int roleIndex;
+
+            //ensures Mafia role is assigned to one client
+            if (usernames.size() == 5 && mafiaAssigned == false){
+                roles.add("Mafia");
+            } else {
+                // checks if Mafia role has already been assigned
+                if (roles.size() != 0 && !mafiaAssigned){
+                    if (roles.contains("Mafia")){
+                        mafiaAssigned = true;
+                    }
+                }
+
+                // assigns a random role or Civilian role given whether Mafia role has already been assigned or not
+                if (mafiaAssigned){
+                    roleIndex = 1;
+                } else {
+                    roleIndex = rand.nextInt(ROLELIST.length);
+                }
+
+                roles.add(ROLELIST[roleIndex]); // stores client's role in list of roles
+            }
+
+        status.add("Alive"); // stores client's status in list of statuses
+
+        return roles.get(roles.size()-1); // returns client's assigned role
+    }
+
+
+
+    // night phase where Mafia will choose a victim and Civilians will wait
     public static void nightPhase(String role) {
         try {
             // code will be updated to handle multiple clients
