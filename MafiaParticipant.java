@@ -66,11 +66,16 @@ public class MafiaParticipant{
         // waiting room
         incomingText = incomingStream.readLine();
         System.out.println("\n" + incomingText);
-        System.out.println("You are connected. Waiting for other players to join...");
 
-        // temp game start
         incomingText = incomingStream.readLine();
-        System.out.println("\nYour Role: " + incomingText);
+        System.out.println(incomingText);
+
+        incomingText = incomingStream.readLine();
+        System.out.println("\n" + incomingText);
+
+        /* 
+        incomingText = incomingStream.readLine();
+        System.out.println("\nYour Role: " + incomingText);*/
 
         try{
                 input.close();

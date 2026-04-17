@@ -33,13 +33,20 @@ public class ClientHandler implements Runnable{
                 }
             }
 
+            String assignedRole = ServerModerator.setup(incomingText); // set up client's role and status
+ 
             outgoingStream.println("Hello " + incomingText + "!"); // greets client and confirm connection
 
-            // set up client's role and status
-            String assignedRole = ServerModerator.setup(incomingText); 
-            outgoingStream.println(assignedRole); 
-        } catch (IOException e){
+            // enters the waiting room
+            outgoingStream.println("You are connected. Waiting for other players to join...");
+            ServerModerator.clientWaitingRoom();
 
+            outgoingStream.println("All players joined! Starting game...");
+
+        } catch (IOException e){
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 }

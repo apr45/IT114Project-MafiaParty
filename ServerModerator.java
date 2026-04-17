@@ -3,6 +3,16 @@ import java.io.*;
 import java.util.*;
 
 public class ServerModerator{
+    // variable manages state of game
+    public static final Object gameLock = new Object();
+
+    // variables to keep track of number of players
+    static private int maxPlayers = 2;
+    static private int playersCount = 0;
+
+    // variable to keep track if clients left the waiting room
+    static private boolean exitWaitingState = false;
+    
     // input and output streams
     static BufferedReader incomingStream = null;
     static PrintWriter outgoingStream = null;
@@ -12,9 +22,6 @@ public class ServerModerator{
     static public ArrayList<String> usernames = new ArrayList<String>();
     static public ArrayList<String> roles = new ArrayList<String>();
     static public ArrayList<String> status = new ArrayList<String>();
-
-    // temp list to store client threads for testing purposes
-    static ArrayList<Thread> clientThreads = new ArrayList<Thread>();
 
     // list of available roles
     static final private String[] ROLELIST = {"Mafia", "Civilian"};
@@ -29,11 +36,6 @@ public class ServerModerator{
         ServerSocket serverSocket = new ServerSocket(PORT);
         Socket clientSocket = null;
 
-        // variable to keep track of number of players
-        int maxPlayers = 3;
-        int playersCount = 0;
-
-
         // connects client to server until max number of players is reached
         while (playersCount < maxPlayers) {
             try {
@@ -46,8 +48,6 @@ public class ServerModerator{
                 playersCount += 1;
                 System.out.println("Client " + playersCount + " connected.");
 
-                clientThreads.add(clientThread); // temp code to store client threads for testing purposes
-
                 clientThread.start(); // runs client thread
             } catch (IOException e) {
                 e.printStackTrace();
@@ -58,14 +58,10 @@ public class ServerModerator{
         serverSocket.close();
         System.out.println("Max number of players reached. No longer accepting connections.");
 
-        // temp code to wait for all client threads to finish
-        for (Thread t : clientThreads) {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+
+        // ensures all info per client is setup before server executes night state
+        while (!exitWaitingState){}
+        exitWaitingState = false;
 
         // displays list of players, roles, and statuses for testing purposes
         System.out.println("\nList of players: " + usernames);
@@ -130,7 +126,7 @@ public class ServerModerator{
             int roleIndex;
 
             //ensures Mafia role is assigned to one client
-            if (usernames.size() == 5 && mafiaAssigned == false){
+            if (usernames.size() == maxPlayers && mafiaAssigned == false){
                 roles.add("Mafia");
             } else {
                 // checks if Mafia role has already been assigned
@@ -156,6 +152,16 @@ public class ServerModerator{
     }
 
 
+    // method to place clients into waiting rooms
+    public static void clientWaitingRoom() throws InterruptedException {
+        synchronized (gameLock) {
+            while (playersCount < maxPlayers){
+                gameLock.wait();
+            }
+            gameLock.notifyAll();
+            exitWaitingState = true;
+        }
+    }
 
     // night phase where Mafia will choose a victim and Civilians will wait
     public static void nightPhase(String role) {
