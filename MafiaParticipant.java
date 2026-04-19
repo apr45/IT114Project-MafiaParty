@@ -17,7 +17,7 @@ public class MafiaParticipant{
         // scanner for user input
         Scanner input = new Scanner(System.in);
 
-        // inital username input and server connection logic
+        // inital username input and server connection
             String username; // stores client's username
 
             System.out.print("Enter your name: "); // prompts client to enter username
@@ -43,7 +43,7 @@ public class MafiaParticipant{
 
         outgoingStream.println(username); // sends initial username input to server
 
-        // username duplication check logic
+        // username duplication check
         while (true) {
             // receives server's response on whether username is valid or not to use
             incomingText = incomingStream.readLine();
@@ -70,12 +70,14 @@ public class MafiaParticipant{
         incomingText = incomingStream.readLine();
         System.out.println(incomingText);
 
+        // game starts
         incomingText = incomingStream.readLine();
         System.out.println("\n" + incomingText);
-
-        /* 
+        
         incomingText = incomingStream.readLine();
-        System.out.println("\nYour Role: " + incomingText);*/
+        System.out.println("Your role is: " + incomingText);
+
+        //dayPhase(incomingText);
 
         try{
                 input.close();
@@ -171,25 +173,17 @@ public class MafiaParticipant{
         } catch(Exception e) {
             e.printStackTrace();
         }
-    } 
+    } */
 
 
     // day phase
     public static void dayPhase(String role) {
         try{
-            outgoingStream.println(role);
             incomingText = incomingStream.readLine();
             System.out.println(incomingText);
 
-            incomingText = incomingStream.readLine();
-            System.out.println(incomingText);
-
-            incomingText = incomingStream.readLine();
-            System.out.println(incomingText);
-
-            incomingText = incomingStream.readLine();
-            System.out.println(incomingText);
         } catch(Exception e) {
             e.printStackTrace();
-        }*/
+        }
+    }
 }
