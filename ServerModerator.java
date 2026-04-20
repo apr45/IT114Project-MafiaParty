@@ -4,26 +4,39 @@ import java.util.*;
 
 public class ServerModerator{
     // variable to use as lock for synchronized methods
-    public static final Object gameLock = new Object();
+    static final public Object GAMELOCK = new Object();
+
+    // variable to keep track of game state
+    static volatile public String gameState = "";
+
+    // variable to keep track of timer
+    static volatile public int timer = 1;
 
     // variables to keep track of number of players
     static private int maxPlayers = 2;
-    static private int playersCount = 0;
+    static public int playersCount = 0;
 
     // variable to keep track of whether clients exited waiting room
     static private boolean exitWaitingState = false;
 
     // lists to store player information
-    static public ArrayList<String> usernames = new ArrayList<String>();
-    static public ArrayList<String> roles = new ArrayList<String>();
-    static public ArrayList<String> status = new ArrayList<String>();
+    static private ArrayList<String> usernames = new ArrayList<String>();
+    static private ArrayList<String> roles = new ArrayList<String>();
+    static private ArrayList<String> status = new ArrayList<String>();
+
+    // lists to store client input and output streams for communication with clients
+    static private ArrayList<BufferedReader> incomingStreams = new ArrayList<BufferedReader>();
+    static private ArrayList<PrintWriter> outgoingStreams = new ArrayList<PrintWriter>();
 
     // list of available roles
     static final private String[] ROLELIST = {"Mafia", "Civilian"};
     static private boolean mafiaAssigned = false;
 
     // variable to keep track of votes
-    static int voteCount = 0;
+    static private int voteCount = 0;
+
+    // variable to keep track of incoming text from clients
+    static private String incomingText;
 
     public static void main(String[] args) throws IOException{
         // connection variables
@@ -54,7 +67,10 @@ public class ServerModerator{
         System.out.println("Max number of players reached. No longer accepting connections.");
 
         try {
-            Thread.sleep(3000); 
+            // waiting state until all clients set up information and enter waiting room
+            while (exitWaitingState == false){
+                Thread.sleep(1000);
+            }
 
             // displays game information regarding players, roles, and statuses
             System.out.println("\n--Game Information--");
@@ -62,35 +78,24 @@ public class ServerModerator{
             System.out.println("List of roles: " + roles);
             System.out.println("List of statuses: " + status);
 
-            // gets clients out of waiting room and starts the game
-            synchronized (gameLock) {
-                exitWaitingState = true;
-                gameLock.notifyAll();
+            // gets clients out of waiting room
+            synchronized (GAMELOCK) {
+                GAMELOCK.notifyAll();
             }
 
-            Thread.sleep(5000);
-            exitWaitingState = false; // resets waiting room for next phase
+            // waiting state until all clients leave waiting room
+            while (playersCount > 0){
+                Thread.sleep(1000);
+            }
+
+            exitWaitingState = false; // resets waiting room
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        
-        // temp day phase server-side testing
-        System.out.println("\nDay Phase has begun for alive players. Starting time limit for discussion...");
-    }
-
-/*      // gets clients out of waiting room and starts the game
-            // code will later wait for more players to join before starting the game
-        outgoingStream.println("NIGHTPHASE");
 
         // night and day phases
-            // code will be updated to loop through night and day phases until end game conditions
-        try {
-            incomingText = incomingStream.readLine();
-            nightPhase(incomingText);
-
-            incomingText = incomingStream.readLine();
-            dayPhase(incomingText);
-
+        serverDayPhase();
+            /*
             // code to check for end game conditions
             int countAlive = Collections.frequency(status, "Alive");
             if (countAlive == 1 && roles.contains("Mafia")) {
@@ -113,9 +118,9 @@ public class ServerModerator{
 
             }
         }
-
-    }
 */
+    }
+
     // synchronized method to check for duplicate usernames
     public synchronized static boolean doubleUsername(String username){
         // checks if client's username is already in use
@@ -127,8 +132,12 @@ public class ServerModerator{
         }        
     }
 
-    // synchronized method to set up client's role and status 
-    public static synchronized String setup(){
+    // synchronized method to set up client information
+    public static synchronized String setup(BufferedReader incomingStream, PrintWriter outgoingStream){
+        // adds client's input and output streams to list of streams
+        incomingStreams.add(incomingStream);
+        outgoingStreams.add(outgoingStream);
+
         // role assignment logic
             // random number generator
             Random rand = new Random();
@@ -163,10 +172,14 @@ public class ServerModerator{
 
     // method to manage clients in waiting room
     public static void clientWaitingRoom() throws InterruptedException {
-        synchronized (gameLock) {
-            // enters clients into waiting room until max number of players has joined
+        synchronized (GAMELOCK) {
             while (exitWaitingState == false){
-                gameLock.wait();
+                // last player to join waiting room will notify server to exit waiting state
+                if (playersCount == maxPlayers){
+                    exitWaitingState = true;
+                }
+
+                GAMELOCK.wait(); // clients will wait until server signals all to exit waiting room
             }
         }
     }
@@ -197,29 +210,28 @@ public class ServerModerator{
         }
     }
 */
+    public static void serverDayPhase(){
+        System.out.println("\nDay Phase has begun for alive players. Starting time limit for discussion...");
+        gameState = "DAYPHASE";
+        try{
+            Thread.sleep(10000);
+        } catch (InterruptedException e){
+            e.printStackTrace();
+        }
+
+        System.out.println("Time reached zero. Moving on to voting");
+        timer = 0;
+    }
 
     // day phase where players will discuss and vote on who they think the Mafia is
         // time limit for discussion and voting will also be implemented here
-    public synchronized static void dayPhase(String username, String role, PrintWriter outgoingStream, BufferedReader incomingStream) {
+    public synchronized static void broadcast(String username, String message){
         try {
-            // chatroom functionality for discussion among players
-                outgoingStream.println("Day has dawned. Discuss who is the Mafia.");
-                String incomingText;
-
-                if (role.equals("Ghost")) {
-                    // ghost clients can only watch the discussion and cannot participate in voting
-                    outgoingStream.println("You are a spectator. You can watch the discussion but cannot participate.");
-                } else {   
-                    while (true){
-                        outgoingStream.println(username + ": ");
-                        incomingText = incomingStream.readLine();
-                        for (int i = 0; i < usernames.size(); i++){
-                            if (!usernames.get(i).equals(username) && status.get(i).equals("Alive")){
-                                outgoingStream.println(username + ": " + incomingText);
-                            }
-                        }
-                    }
-                }
+            for (int i = 0; i < usernames.size(); i++){
+                if (!usernames.get(i).equals(username) && status.get(i).equals("Alive")){
+                    outgoingStreams.get(i).println(username + ": " + message);
+                } 
+            }
 
 
             /* voting implementation will be added later
@@ -232,8 +244,6 @@ public class ServerModerator{
                 System.out.println("Votes have been tallied. The player with the most votes has been eliminated.");
                 voteCount = 0; 
             */
-
-            outgoingStream.println("Day phase has ended.");
         } catch(Exception e) {
             e.printStackTrace();
          }

@@ -6,16 +6,16 @@ public class MafiaParticipant{
     // input and output streams
     static private BufferedReader incomingStream = null;
     static private PrintWriter outgoingStream = null;
-    static private String incomingText;
+    static private String incomingText, outgoingText;
+
+    // scanner for user input
+    static private Scanner input = new Scanner(System.in);
 
     public static void main(String[] args) throws IOException{
         // connection variables
         Socket connection = null;
         final String LOOPBACKADDRESS = "localhost";
         final int PORT = 2005;
-
-        // scanner for user input
-        Scanner input = new Scanner(System.in);
 
         // inital username input and server connection
             String username; // stores client's username
@@ -77,7 +77,7 @@ public class MafiaParticipant{
         incomingText = incomingStream.readLine();
         System.out.println("Your role is: " + incomingText);
 
-        //dayPhase(incomingText);
+        clientDayState();
 
         try{
                 input.close();
@@ -176,14 +176,42 @@ public class MafiaParticipant{
     } */
 
 
-    // day phase
-    public static void dayPhase(String role) {
-        try{
-            incomingText = incomingStream.readLine();
-            System.out.println(incomingText);
+    // day state for the client side
+    public static void clientDayState() throws IOException{
+        // signals players that daytime has come and preps for dissussion time
+        System.out.println("\nDay has dawned. Discuss who is the Mafia.");
+        System.out.println("--Chat Room--");
 
+        clientMessages();
+        groupMessages();
+    }
+    
+    
+    public static void groupMessages() {
+        try{
+            while (true) {
+                incomingText = incomingStream.readLine();
+                System.out.println(incomingText);
+            }
         } catch(Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static void clientMessages(){
+        new Thread(new Runnable() {
+            @Override
+            public void run(){
+
+                try{
+                    while(true){
+                        outgoingText = input.nextLine();
+                        outgoingStream.println(outgoingText);
+                    }
+                } catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 }

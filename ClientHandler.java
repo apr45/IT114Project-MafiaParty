@@ -2,11 +2,18 @@ import java.net.*;
 import java.io.*;
 
 public class ClientHandler implements Runnable{
-    private Socket clientSocket; // socket for client connection
+    // socket for client connection
+    private Socket clientSocket;
+
+    // client input and output streams
+    private BufferedReader incomingStream = null;
+    public PrintWriter outgoingStream = null;
 
     // client information
-    private static String username;
-    private static String role;
+    private String username;
+    private String role;
+
+    static String incomingText = null;
 
     // constructor
     public ClientHandler(Socket socket) {
@@ -18,10 +25,8 @@ public class ClientHandler implements Runnable{
     public void run() {
         try{
             // input and output streams
-            BufferedReader incomingStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            PrintWriter outgoingStream = new PrintWriter(clientSocket.getOutputStream(), true);
-            String incomingText = null;
-
+            incomingStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            outgoingStream = new PrintWriter(clientSocket.getOutputStream(), true);
 
             // prevent clients from using the same username
             while (true){
@@ -38,7 +43,7 @@ public class ClientHandler implements Runnable{
                 }
             }
 
-            role = ServerModerator.setup(); // set up client's role and status
+            role = ServerModerator.setup(incomingStream, outgoingStream); // set up client's role and status
  
             outgoingStream.println("Hello " + username + "!"); // greets client and confirm connection
 
@@ -49,9 +54,21 @@ public class ClientHandler implements Runnable{
             // game starts once all players have joined
             outgoingStream.println("All players joined! Starting game...");
             outgoingStream.println(role);
+            ServerModerator.playersCount--;
 
-            // temp enters day phase immediately after waiting room for testing purposes
-            //ServerModerator.dayPhase(username, role, outgoingStream, incomingStream);
+            // night and day phases
+            while(true){
+                if (ServerModerator.gameState.equals("DAYPHASE")){
+                    while (true){
+                        incomingText = incomingStream.readLine();
+                        ServerModerator.broadcast(username, incomingText);
+                    }
+                    //outgoingStream.println("Time to vote!");
+                }
+            }
+               
+            
+            //outgoingStream.println("Daytime has ended.");
 
         } catch (IOException e){
             e.printStackTrace();
