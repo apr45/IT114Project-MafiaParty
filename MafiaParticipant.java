@@ -8,6 +8,8 @@ public class MafiaParticipant{
     static private PrintWriter outgoingStream = null;
     static private String incomingText, outgoingText;
 
+    static Thread clientText;
+
     // scanner for user input
     static private Scanner input = new Scanner(System.in);
 
@@ -184,6 +186,8 @@ public class MafiaParticipant{
 
         clientMessages();
         groupMessages();
+
+        System.out.println("Times up! Vote who you think is Mafia.");
     }
     
     
@@ -191,27 +195,30 @@ public class MafiaParticipant{
         try{
             while (true) {
                 incomingText = incomingStream.readLine();
-                System.out.println(incomingText);
+                if (incomingText.equals("EXIT")){
+                    break;
+                } else 
+                    System.out.println(incomingText);
             }
+            clientText.interrupt();
         } catch(Exception e) {
             e.printStackTrace();
         }
     }
 
     public static void clientMessages(){
-        new Thread(new Runnable() {
-            @Override
-            public void run(){
-
-                try{
-                    while(true){
-                        outgoingText = input.nextLine();
-                        outgoingStream.println(outgoingText);
-                    }
-                } catch (Exception e){
-                    e.printStackTrace();
+        clientText = new Thread(() -> {
+            try{
+                while(!Thread.currentThread().isInterrupted()){
+                    outgoingText = input.nextLine();
+                    outgoingStream.println(outgoingText);
                 }
+            } catch (Exception e){
+                System.out.println("End of Discussion");
+                Thread.currentThread().interrupt(); 
             }
-        }).start();
+        });
+        
+        clientText.start();
     }
 }

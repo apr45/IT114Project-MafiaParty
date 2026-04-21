@@ -13,7 +13,7 @@ public class ServerModerator{
     static volatile public int timer = 1;
 
     // variables to keep track of number of players
-    static private int maxPlayers = 2;
+    static private int maxPlayers = 2; // TODO: change max players to 5
     static public int playersCount = 0;
 
     // variable to keep track of whether clients exited waiting room
@@ -34,9 +34,6 @@ public class ServerModerator{
 
     // variable to keep track of votes
     static private int voteCount = 0;
-
-    // variable to keep track of incoming text from clients
-    static private String incomingText;
 
     public static void main(String[] args) throws IOException{
         // connection variables
@@ -94,7 +91,7 @@ public class ServerModerator{
         }
 
         // night and day phases
-        serverDayPhase();
+        serverDayState();
             /*
             // code to check for end game conditions
             int countAlive = Collections.frequency(status, "Alive");
@@ -121,7 +118,7 @@ public class ServerModerator{
 */
     }
 
-    // synchronized method to check for duplicate usernames
+    // check for duplicate usernames
     public synchronized static boolean doubleUsername(String username){
         // checks if client's username is already in use
         if (usernames.contains(username)){
@@ -132,7 +129,7 @@ public class ServerModerator{
         }        
     }
 
-    // synchronized method to set up client information
+    // set up client information
     public static synchronized String setup(BufferedReader incomingStream, PrintWriter outgoingStream){
         // adds client's input and output streams to list of streams
         incomingStreams.add(incomingStream);
@@ -144,6 +141,7 @@ public class ServerModerator{
             int roleIndex;
 
             //ensures Mafia role is assigned to one client
+                // TODO: update as more than one client are getting Mafia role
             if (usernames.size() == maxPlayers && mafiaAssigned == false){
                 roles.add("Mafia");
             } else {
@@ -170,7 +168,7 @@ public class ServerModerator{
     }
 
 
-    // method to manage clients in waiting room
+    // manage clients in waiting room
     public static void clientWaitingRoom() throws InterruptedException {
         synchronized (GAMELOCK) {
             while (exitWaitingState == false){
@@ -210,40 +208,33 @@ public class ServerModerator{
         }
     }
 */
-    public static void serverDayPhase(){
-        System.out.println("\nDay Phase has begun for alive players. Starting time limit for discussion...");
-        gameState = "DAYPHASE";
+    // day state for server side
+    public static void serverDayState(){
+        // signals server to initate timer for chat discussion
+        System.out.println("\nDay State has begun for alive players. Starting time limit for discussion...");
+
+        gameState = "DAYSTATE"; // changes game state to daytime
+
         try{
-            Thread.sleep(10000);
+            Thread.sleep(10000); // TODO: change timer to 5 minutes
         } catch (InterruptedException e){
             e.printStackTrace();
         }
 
-        System.out.println("Time reached zero. Moving on to voting");
+        // signals server timer hits 0 and initate for player voting
         timer = 0;
+        System.out.println("Time reached zero. Move on to voting..");
     }
 
-    // day phase where players will discuss and vote on who they think the Mafia is
-        // time limit for discussion and voting will also be implemented here
+    // displays client message to other clients
     public synchronized static void broadcast(String username, String message){
         try {
             for (int i = 0; i < usernames.size(); i++){
+                // prevent the original sender to recieve message
                 if (!usernames.get(i).equals(username) && status.get(i).equals("Alive")){
                     outgoingStreams.get(i).println(username + ": " + message);
                 } 
             }
-
-
-            /* voting implementation will be added later
-            // after discussion, display list of players and perform voting
-                    // use synchronized method to handle multiple clients voting at the same time
-                System.out.println("Time for discussion is over. Vote for who you think the Mafia is.");
-
-                // after voting, code to tally votes and update eliminated player's status and role to "Unalived" and "Ghost" respectively
-                    // checks for tie votes and handles accordingly by eliminating no one
-                System.out.println("Votes have been tallied. The player with the most votes has been eliminated.");
-                voteCount = 0; 
-            */
         } catch(Exception e) {
             e.printStackTrace();
          }

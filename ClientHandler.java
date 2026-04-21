@@ -58,12 +58,16 @@ public class ClientHandler implements Runnable{
 
             // night and day phases
             while(true){
-                if (ServerModerator.gameState.equals("DAYPHASE")){
+                if (ServerModerator.gameState.equals("DAYSTATE")){
                     while (true){
-                        incomingText = incomingStream.readLine();
-                        ServerModerator.broadcast(username, incomingText);
+                        if (ServerModerator.timer == 1){
+                            incomingText = incomingStream.readLine();
+                            ServerModerator.broadcast(username, incomingText);
+                        } else {
+                            outgoingStream.println("EXIT");
+                            break;
+                        }
                     }
-                    //outgoingStream.println("Time to vote!");
                 }
             }
                
