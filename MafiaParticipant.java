@@ -75,7 +75,7 @@ public class MafiaParticipant{
 
         // waits until all players connect to server before starting game
         incomingText = incomingStream.readLine();
-        System.out.println("All players joined! Starting game..");
+        System.out.println("\nAll players joined! Starting game..");
         System.out.println("Your role is: " + incomingText);
 
         // night and day states
@@ -88,20 +88,19 @@ public class MafiaParticipant{
                     clientNightState();
                 } else if (incomingText.equals("DAYSTATE")) {
                     clientDayState();
-                } else {
-                    break;
+                } else if (incomingText.equals("ENDSTATE")){
+                    try{
+                        input.close();
+                        connection.close();
+                        
+                        if (incomingStream != null && outgoingStream != null){
+                            incomingStream.close();
+                            outgoingStream.close();
+                        }
+                    } catch(Exception e){
+
+                    }
                 }
-        }
-
-        try{
-                input.close();
-                connection.close();
-                if (incomingStream != null && outgoingStream != null){
-                    incomingStream.close();
-                    outgoingStream.close();
-            }
-            } catch(Exception e){
-
             }
     }
 
@@ -121,7 +120,7 @@ public class MafiaParticipant{
     // night state for the client side
     public static void clientNightState() throws IOException {
         // signals client the beginning of night time
-        System.out.println("\nNight has fallen. Civilians fall asleep as Mafia choses their victim.");
+        System.out.println("\nNight has fallen. Civilians fall asleep as Mafia chooses their victim.");
 
         try {
 
@@ -158,18 +157,21 @@ public class MafiaParticipant{
         clientMessages();
         groupMessages();
 
-        System.out.println("Times up! Vote who you think is Mafia.");
+        incomingText = incomingStream.readLine();
+        System.out.println(incomingText);
     }
     
-    
+    // display message from other clients
     public static void groupMessages() {
         try{
             while (true) {
                 incomingText = incomingStream.readLine();
                 if (incomingText.equals("EXIT")){
+                    //System.out.println("Type Last Message: ");
                     break;
-                } else 
+                } else {
                     System.out.println(incomingText);
+                }
             }
             clientText.interrupt();
         } catch(Exception e) {
@@ -177,16 +179,19 @@ public class MafiaParticipant{
         }
     }
 
+    // recieves input from client
     public static void clientMessages(){
         clientText = new Thread(() -> {
             try{
-                while(!Thread.currentThread().isInterrupted()){
+                while (true){
+                    if (Thread.currentThread().isInterrupted()){
+                        break;
+                    }
+
                     outgoingText = input.nextLine();
                     outgoingStream.println(outgoingText);
                 }
             } catch (Exception e){
-                System.out.println("End of Discussion");
-                Thread.currentThread().interrupt(); 
             }
         });
         

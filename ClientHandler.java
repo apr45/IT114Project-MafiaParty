@@ -81,16 +81,19 @@ public class ClientHandler implements Runnable{
                     outgoingStream.println(ServerModerator.gameState);
 
                     while (true){
-                        if (ServerModerator.timer == 1){
                             incomingText = incomingStream.readLine();
+                        if (ServerModerator.timer == 1){
                             ServerModerator.broadcast(username, incomingText);
                         } else {
                             outgoingStream.println("EXIT");
                             break;
                         }
                     }
-                } else if (ServerModerator.gameState.equals("ENDSTATE")) {
 
+                    outgoingStream.println("Times up! Vote who you think is Mafia.");
+                } else if (ServerModerator.gameState.equals("ENDSTATE")) {
+                    ServerModerator.playersCount++;
+                    outgoingStream.println(ServerModerator.gameState);
                 }
             }
 
