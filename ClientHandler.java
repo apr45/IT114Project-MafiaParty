@@ -7,19 +7,17 @@ public class ClientHandler implements Runnable{
 
     // client input and output streams
     private BufferedReader incomingStream = null;
-    public PrintWriter outgoingStream = null;
+    private PrintWriter outgoingStream = null;
+    static private String incomingText;
 
     // client information
     private String username;
     private String role;
 
-    static String incomingText = null;
-
     // constructor
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
     }
-
 
     @Override
     public void run() {
@@ -33,32 +31,55 @@ public class ClientHandler implements Runnable{
                 incomingText = incomingStream.readLine();
                 
                 if (incomingText == null) {
-                    return; // client disconnected
+                    // client disconnected
+                    return;
                 } else if (ServerModerator.doubleUsername(incomingText)){
-                    outgoingStream.println("INVALID"); // prompt client to enter a different username
+                    // prompt client to enter a different username
+                    outgoingStream.println("INVALID");
                 } else {
-                    outgoingStream.println("VALID"); // confirm username is valid
-                    username = incomingText; // set client's username
+                    // confirm username is valid
+                    outgoingStream.println("VALID");
+                    username = incomingText;
+                    outgoingStream.println(username);
                     break;
                 }
             }
 
-            role = ServerModerator.setup(incomingStream, outgoingStream); // set up client's role and status
- 
-            outgoingStream.println("Hello " + username + "!"); // greets client and confirm connection
+            // set up client information and role
+            role = ServerModerator.setup(incomingStream, outgoingStream);
 
-            // enters the waiting room
-            outgoingStream.println("You are connected. Waiting for other players to join...");
+            // enters the client into the waiting room
             ServerModerator.clientWaitingRoom();
 
-            // game starts once all players have joined
-            outgoingStream.println("All players joined! Starting game...");
+            // signals client to begin game and reveals their role
             outgoingStream.println(role);
             ServerModerator.playersCount--;
 
-            // night and day phases
+            // night and day states
             while(true){
-                if (ServerModerator.gameState.equals("DAYSTATE")){
+                if (ServerModerator.gameState.equals("NIGHTSTATE")){
+                    // informs client to the current state and resends role
+                    outgoingStream.println(ServerModerator.gameState);
+                    outgoingStream.println(role);
+
+
+                    if (role.equals("Mafia")){
+                        ServerModerator.alivePlayersList();
+
+                        incomingText = incomingStream.readLine();
+                        ServerModerator.eliminatedPlayer(incomingText);
+
+                        ServerModerator.playersCount = ServerModerator.MAX_PLAYERS;
+                        ServerModerator.clientWaitingRoom();
+                    } else if (role.equals("Civilian")){
+                        ServerModerator.clientWaitingRoom();
+                    }
+
+                    ServerModerator.playersCount--;
+                    outgoingStream.println("Night time has ended.");
+                } else if (ServerModerator.gameState.equals("DAYSTATE")){
+                    outgoingStream.println(ServerModerator.gameState);
+
                     while (true){
                         if (ServerModerator.timer == 1){
                             incomingText = incomingStream.readLine();
@@ -68,11 +89,10 @@ public class ClientHandler implements Runnable{
                             break;
                         }
                     }
+                } else if (ServerModerator.gameState.equals("ENDSTATE")) {
+
                 }
             }
-               
-            
-            //outgoingStream.println("Daytime has ended.");
 
         } catch (IOException e){
             e.printStackTrace();
