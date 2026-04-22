@@ -89,18 +89,19 @@ public class MafiaParticipant{
                 } else if (incomingText.equals("DAYSTATE")) {
                     clientDayState();
                 } else if (incomingText.equals("ENDSTATE")){
-                    try{
-                        input.close();
-                        connection.close();
-                        
-                        if (incomingStream != null && outgoingStream != null){
-                            incomingStream.close();
-                            outgoingStream.close();
-                        }
-                    } catch(Exception e){
-
-                    }
+                    break;
                 }
+        }
+
+        try{
+                input.close();
+                connection.close();
+                if (incomingStream != null && outgoingStream != null){
+                    incomingStream.close();
+                    outgoingStream.close();
+            }
+            } catch(Exception e){
+
             }
     }
 
@@ -123,23 +124,27 @@ public class MafiaParticipant{
         System.out.println("\nNight has fallen. Civilians fall asleep as Mafia chooses their victim.");
 
         try {
-
+            // block until recieves client role
             incomingText = incomingStream.readLine();
             
-            if (incomingText.equals("Mafia")){
-                System.out.println("--List of Alive Players--");
+            // compares client role to initate proper 
+                if (incomingText.equals("Mafia")){
+                    // displays a list of players with "Alive" status
+                    System.out.println("--List of Alive Players--");
+                    incomingText = incomingStream.readLine();
+                    System.out.println(incomingText);
 
-                incomingText = incomingStream.readLine();
-                System.out.println(incomingText);
-
-                System.out.print("Choose player to elimate: ");
-                outgoingText = input.nextLine();
-                outgoingStream.println(outgoingText);
+                    // asks client to input a person to elimate
+                    System.out.print("Choose player to elimate: ");
+                    outgoingText = input.nextLine();
+                    outgoingStream.println(outgoingText);
                
-            } else if (incomingText.equals("Civilian")){
-                System.out.println("Waiting for Mafia to choose victim...");
-            }
-
+                } else if (incomingText.equals("Civilian")){
+                    // puts client in a waiting state until timer reaches 0
+                    System.out.println("Waiting for Mafia to choose victim...");
+                }
+            
+            // waits until recieves signal that night time has ended
             incomingText = incomingStream.readLine();
             System.out.println(incomingText);
         } catch(Exception e) {
@@ -154,6 +159,7 @@ public class MafiaParticipant{
         System.out.println("\nDay has dawned. Discuss who is the Mafia.");
         System.out.println("--Chat Room--");
 
+        // initates global chat room
         clientMessages();
         groupMessages();
 
@@ -165,14 +171,17 @@ public class MafiaParticipant{
     public static void groupMessages() {
         try{
             while (true) {
+                // waits until recieve a client message to display
                 incomingText = incomingStream.readLine();
+
                 if (incomingText.equals("EXIT")){
-                    //System.out.println("Type Last Message: ");
                     break;
                 } else {
                     System.out.println(incomingText);
                 }
             }
+
+            // interrupts thread to stop taking input
             clientText.interrupt();
         } catch(Exception e) {
             e.printStackTrace();
@@ -181,8 +190,10 @@ public class MafiaParticipant{
 
     // recieves input from client
     public static void clientMessages(){
+        // creates a new thread for client to send messages
         clientText = new Thread(() -> {
             try{
+                // loops for client input until thread is interrupted
                 while (true){
                     if (Thread.currentThread().isInterrupted()){
                         break;
