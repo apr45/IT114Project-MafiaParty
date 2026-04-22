@@ -1,7 +1,7 @@
 import java.net.*;
 import java.io.*;
 import java.util.Scanner;
-
+//
 public class MafiaParticipant{
     // input and output streams
     static private BufferedReader incomingStream = null;
