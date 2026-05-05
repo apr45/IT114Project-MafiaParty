@@ -75,7 +75,7 @@ public class MafiaParticipant{
 
         // waits until all players connect to server before starting game
         incomingText = incomingStream.readLine();
-        System.out.println("All players joined! Starting game..");
+        System.out.println("\nAll players joined! Starting game..");
         System.out.println("Your role is: " + incomingText);
 
         // night and day states
@@ -88,7 +88,7 @@ public class MafiaParticipant{
                     clientNightState();
                 } else if (incomingText.equals("DAYSTATE")) {
                     clientDayState();
-                } else {
+                } else if (incomingText.equals("ENDSTATE")){
                     break;
                 }
         }
@@ -121,26 +121,30 @@ public class MafiaParticipant{
     // night state for the client side
     public static void clientNightState() throws IOException {
         // signals client the beginning of night time
-        System.out.println("\nNight has fallen. Civilians fall asleep as Mafia choses their victim.");
+        System.out.println("\nNight has fallen. Civilians fall asleep as Mafia chooses their victim.");
 
         try {
-
+            // block until recieves client role
             incomingText = incomingStream.readLine();
             
-            if (incomingText.equals("Mafia")){
-                System.out.println("--List of Alive Players--");
+            // compares client role to initate proper 
+                if (incomingText.equals("Mafia")){
+                    // displays a list of players with "Alive" status
+                    System.out.println("--List of Alive Players--");
+                    incomingText = incomingStream.readLine();
+                    System.out.println(incomingText);
 
-                incomingText = incomingStream.readLine();
-                System.out.println(incomingText);
-
-                System.out.print("Choose player to elimate: ");
-                outgoingText = input.nextLine();
-                outgoingStream.println(outgoingText);
+                    // asks client to input a person to elimate
+                    System.out.print("Choose player to elimate: ");
+                    outgoingText = input.nextLine();
+                    outgoingStream.println(outgoingText);
                
-            } else if (incomingText.equals("Civilian")){
-                System.out.println("Waiting for Mafia to choose victim...");
-            }
-
+                } else if (incomingText.equals("Civilian")){
+                    // puts client in a waiting state until timer reaches 0
+                    System.out.println("Waiting for Mafia to choose victim...");
+                }
+            
+            // waits until recieves signal that night time has ended
             incomingText = incomingStream.readLine();
             System.out.println(incomingText);
         } catch(Exception e) {
@@ -155,38 +159,50 @@ public class MafiaParticipant{
         System.out.println("\nDay has dawned. Discuss who is the Mafia.");
         System.out.println("--Chat Room--");
 
+        // initates global chat room
         clientMessages();
         groupMessages();
 
-        System.out.println("Times up! Vote who you think is Mafia.");
+        incomingText = incomingStream.readLine();
+        System.out.println(incomingText);
     }
     
-    
+    // display message from other clients
     public static void groupMessages() {
         try{
             while (true) {
+                // waits until recieve a client message to display
                 incomingText = incomingStream.readLine();
+
                 if (incomingText.equals("EXIT")){
                     break;
-                } else 
+                } else {
                     System.out.println(incomingText);
+                }
             }
+
+            // interrupts thread to stop taking input
             clientText.interrupt();
         } catch(Exception e) {
             e.printStackTrace();
         }
     }
 
+    // recieves input from client
     public static void clientMessages(){
+        // creates a new thread for client to send messages
         clientText = new Thread(() -> {
             try{
-                while(!Thread.currentThread().isInterrupted()){
+                // loops for client input until thread is interrupted
+                while (true){
+                    if (Thread.currentThread().isInterrupted()){
+                        break;
+                    }
+
                     outgoingText = input.nextLine();
                     outgoingStream.println(outgoingText);
                 }
             } catch (Exception e){
-                System.out.println("End of Discussion");
-                Thread.currentThread().interrupt(); 
             }
         });
         

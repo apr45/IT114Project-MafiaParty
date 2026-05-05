@@ -58,10 +58,9 @@ public class ClientHandler implements Runnable{
             // night and day states
             while(true){
                 if (ServerModerator.gameState.equals("NIGHTSTATE")){
-                    // informs client to the current state and resends role
+                    // informs client the current state and resends role
                     outgoingStream.println(ServerModerator.gameState);
                     outgoingStream.println(role);
-
 
                     if (role.equals("Mafia")){
                         ServerModerator.alivePlayersList();
@@ -74,25 +73,35 @@ public class ClientHandler implements Runnable{
                         ServerModerator.playersCount = ServerModerator.MAX_PLAYERS;
                         ServerModerator.clientWaitingRoom();
                     } else if (role.equals("Civilian")){
+                        // puts client with "Civilian" roles in the waiting room
                         ServerModerator.clientWaitingRoom();
                     }
 
                     ServerModerator.playersCount--;
                     outgoingStream.println("Night time has ended.");
                 } else if (ServerModerator.gameState.equals("DAYSTATE")){
+                     // informs client the current state 
                     outgoingStream.println(ServerModerator.gameState);
 
                     while (true){
-                        if (ServerModerator.timer == 1){
+                            // stores client input
                             incomingText = incomingStream.readLine();
+
+                        // checks if server timer reached 0
+                        if (ServerModerator.timer == 1){
+                            // passes client message into a method to share message to other clients
                             ServerModerator.broadcast(username, incomingText);
                         } else {
+                            // signals client to exit chat room
                             outgoingStream.println("EXIT");
                             break;
                         }
                     }
-                } else if (ServerModerator.gameState.equals("ENDSTATE")) {
 
+                    outgoingStream.println("Times up! Vote who you think is Mafia.");
+                } else if (ServerModerator.gameState.equals("ENDSTATE")) {
+                    ServerModerator.playersCount++;
+                    outgoingStream.println(ServerModerator.gameState);
                 }
             }
 

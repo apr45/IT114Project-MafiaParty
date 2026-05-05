@@ -129,7 +129,17 @@ public class ServerModerator{
             }
         }*/
        }
-    }
+
+       try{
+        while (playersCount < MAX_PLAYERS){
+                Thread.sleep(1000);
+            }
+
+        System.exit(0);
+        } catch (InterruptedException e) {
+            e.printStackTrace();    
+        }
+}
 
     // check for duplicate usernames
     public synchronized static boolean doubleUsername(String username){
@@ -196,7 +206,7 @@ public class ServerModerator{
 
             // initates a timer for Mafia to vote
             try{
-                Thread.sleep(20000); // TODO: change timer to 30 - 60 seconds
+                Thread.sleep(10000); // TODO: change timer to 30 - 60 seconds
             } catch (InterruptedException e){
             e.printStackTrace();
             }
@@ -263,6 +273,7 @@ public class ServerModerator{
 
         // signals server timer hits 0 and initate for player voting
         timer = 0;
+        gameState = "";
         System.out.println("Time reached zero. Move on to voting..");
     }
 
@@ -271,7 +282,7 @@ public class ServerModerator{
         try {
             for (int i = 0; i < usernames.size(); i++){
                 // prevent the original sender to recieve message
-                if (!usernames.get(i).equals(username) && statuses.get(i).equals("Alive")){
+                if (!usernames.get(i).equals(username) /*&& statuses.get(i).equals("Alive")*/){
                     outgoingStreams.get(i).println(username + ": " + message);
                 } 
             }
