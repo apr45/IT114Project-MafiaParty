@@ -6,18 +6,16 @@ public class ServerModerator{
     // variable to use as lock for synchronized methods
     public static final Object GAME_LOCK = new Object();
 
-    // variable to keep track of game state
+    // variables to track data
     public static volatile String gameState = "";
-
-    // variable to keep track of timer
     public static volatile int timer = 1;
+    public static volatile boolean targetChoosen = false;
+    private static boolean exitWaitingState = false;
+
 
     // variables to keep track of number of players
     public static final int MAX_PLAYERS = 2; // TODO: change max players to 5
     public static volatile int playersCount = 0;
-
-    // variable to keep track of whether clients exited waiting room
-    private static boolean exitWaitingState = false;
 
     // lists to store player information
     private static ArrayList<String> usernames = new ArrayList<String>();
@@ -173,7 +171,6 @@ public class ServerModerator{
         // returns client's assigned role
         return roles.get(roles.size()-1);
     }
-
 
     // manage clients in waiting room
     public static void clientWaitingRoom() throws InterruptedException {

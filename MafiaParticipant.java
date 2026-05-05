@@ -4,9 +4,9 @@ import java.util.Scanner;
 //
 public class MafiaParticipant{
     // input and output streams
-    static private BufferedReader incomingStream = null;
-    static private PrintWriter outgoingStream = null;
-    static private String incomingText, outgoingText;
+    private static BufferedReader incomingStream = null;
+    private static PrintWriter outgoingStream = null;
+    private static String incomingText, outgoingText;
 
     static Thread clientText;
 

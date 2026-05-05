@@ -8,7 +8,7 @@ public class ClientHandler implements Runnable{
     // client input and output streams
     private BufferedReader incomingStream = null;
     private PrintWriter outgoingStream = null;
-    static private String incomingText;
+    private static String incomingText;
 
     // client information
     private String username;
@@ -67,6 +67,8 @@ public class ClientHandler implements Runnable{
                         ServerModerator.alivePlayersList();
 
                         incomingText = incomingStream.readLine();
+                        ServerModerator.targetChoosen = true;
+
                         ServerModerator.eliminatedPlayer(incomingText);
 
                         ServerModerator.playersCount = ServerModerator.MAX_PLAYERS;
