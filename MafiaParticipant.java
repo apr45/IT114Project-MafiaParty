@@ -1,12 +1,17 @@
 import java.net.*;
 import java.io.*;
-import java.util.Scanner;
-//
+import java.util.*;
+import javax.swing.*;
+import java.awt.*;
+
 public class MafiaParticipant{
     // input and output streams
     private static BufferedReader incomingStream = null;
     private static PrintWriter outgoingStream = null;
     private static String incomingText, outgoingText;
+
+    // GUI client window
+    private static JFrame gameWindow = new JFrame("Mafia Party");;
 
     static Thread clientText;
 
@@ -74,9 +79,52 @@ public class MafiaParticipant{
         System.out.println("You are connected. Waiting for other players to join...");
 
         // waits until all players connect to server before starting game
-        incomingText = incomingStream.readLine();
-        System.out.println("\nAll players joined! Starting game..");
-        System.out.println("Your role is: " + incomingText);
+            // gets array of all players connected
+            incomingText = incomingStream.readLine();
+            String usernames = incomingText.replace("[", "").replace("]", "");
+            String[] usernamesArray = usernames.split(", ");
+
+            // informs client that all players connected
+            System.out.println("\nAll players joined! Starting game..");
+
+        // sets up GUI window for client side
+            // window size and close operation
+            gameWindow.setSize(500,500);
+            gameWindow.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+            // header
+            JPanel header = new JPanel();
+            JLabel title = new JLabel("List of Players:");
+            header.add(title);
+            gameWindow.add(header, BorderLayout.NORTH);
+
+            // player list
+                // sets layout of player list
+                JPanel playerList = new JPanel();
+                playerList.setLayout(new GridLayout(usernamesArray.length, 1, 5, 0));
+
+                // resize alive icon image
+                ImageIcon aliveIcon = new ImageIcon("alive.png");
+                Image aliveImage = aliveIcon.getImage();
+                Image resizedAliveImage = aliveImage.getScaledInstance(25, 25, Image.SCALE_SMOOTH);
+                aliveIcon = new ImageIcon(resizedAliveImage);
+
+                // inserts label of each player into the player list panel
+                for (int i = 0; i < usernamesArray.length; i++){
+                    playerList.add(new JLabel(usernamesArray[i], aliveIcon, JLabel.LEFT));
+                }
+            
+                // adds player list panel to game window
+                gameWindow.add(playerList, BorderLayout.CENTER);
+            
+            // role
+                JPanel clientRole = new JPanel();
+                String role = incomingStream.readLine();
+                clientRole.add(new JLabel("Your role is: " + role));
+                gameWindow.add(clientRole, BorderLayout.SOUTH);
+
+            // makes GUI window visible to client
+            gameWindow.setVisible(true);
 
         // night and day states
             while (true){
@@ -136,7 +184,14 @@ public class MafiaParticipant{
 
                     // asks client to input a person to elimate
                     System.out.print("Choose player to elimate: ");
-                    outgoingText = input.nextLine();
+                    outgoingText = "NONE";
+                    
+                    while (ServerModerator.timer == 1){
+                        if (System.in.available() > 0){
+                            outgoingText = input.nextLine();
+                            break;
+                        }
+                    }
                     outgoingStream.println(outgoingText);
                
                 } else if (incomingText.equals("Civilian")){

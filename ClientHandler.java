@@ -1,4 +1,5 @@
 import java.net.*;
+import java.util.ArrayList;
 import java.io.*;
 
 public class ClientHandler implements Runnable{
@@ -51,9 +52,16 @@ public class ClientHandler implements Runnable{
             // enters the client into the waiting room
             ServerModerator.clientWaitingRoom();
 
-            // signals client to begin game and reveals their role
-            outgoingStream.println(role);
-            ServerModerator.playersCount--;
+            // signals client to begin game
+                // reveals client the list of players connected
+                ArrayList<String> usernames = ServerModerator.usernamesArrayList();
+                outgoingStream.println(usernames);
+
+                // reveals client their role
+                outgoingStream.println(role);
+
+                // resets player count
+                ServerModerator.playersCount--;
 
             // night and day states
             while(true){
@@ -66,9 +74,9 @@ public class ClientHandler implements Runnable{
                         ServerModerator.alivePlayersList();
 
                         incomingText = incomingStream.readLine();
-                        ServerModerator.targetChoosen = true;
-
-                        ServerModerator.eliminatedPlayer(incomingText);
+                        
+                        if (!incomingText.equals("NONE"))
+                            ServerModerator.eliminatedPlayer(incomingText);
 
                         ServerModerator.playersCount = ServerModerator.MAX_PLAYERS;
                         ServerModerator.clientWaitingRoom();

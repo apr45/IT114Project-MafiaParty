@@ -197,6 +197,15 @@ public class ServerModerator{
         }
     }
 
+    // getters for username and status arraylists
+        public static ArrayList<String> usernamesArrayList(){
+            return usernames;
+        }
+
+        public static ArrayList<String> statusArrayList(){
+            return statuses;
+        }
+
     // night state for server side
     public static void serverNightState() {
         try {
@@ -213,6 +222,7 @@ public class ServerModerator{
 
             // once timer reaches, ends night time
             System.out.println("Timer reached zero. Night State has ended.");
+            timer = 0;
 
             // displays updated game information regarding players, roles, and statuses
             System.out.println("\n--Game Information--");
