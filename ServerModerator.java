@@ -247,7 +247,7 @@ public class ServerModerator{
     }
 
     // displays a list of players that are alive to Mafia only; update later to implement GUI 
-    public static void alivePlayersList(){
+    public static ArrayList<String> alivePlayersList(){
         ArrayList<String> alivePlayers = new ArrayList<String>();
 
         for (int i = 0; i < usernames.size(); i++){
@@ -255,8 +255,7 @@ public class ServerModerator{
                 alivePlayers.add(usernames.get(i));
         }
         
-        int mafiaIndex = roles.indexOf("Mafia");
-        outgoingStreams.get(mafiaIndex).println(alivePlayers);
+        return alivePlayers;
     }
 
     // updates client's information based on Mafia's choice

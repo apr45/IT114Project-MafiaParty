@@ -10,8 +10,15 @@ public class MafiaParticipant{
     private static PrintWriter outgoingStream = null;
     private static String incomingText, outgoingText;
 
-    // GUI client window
-    private static JFrame gameWindow = new JFrame("Mafia Party");;
+    // GUI components
+    private static JFrame gameWindow = new JFrame("Mafia Party");
+    private static JPanel playersPanel = new JPanel();
+    private static ImageIcon aliveIcon;
+    private static ImageIcon deadIcon;
+
+    // tracks players information
+    private static String[] usernameList;
+    private static String[] statusList;
 
     static Thread clientText;
 
@@ -81,8 +88,7 @@ public class MafiaParticipant{
         // waits until all players connect to server before starting game
             // gets array of all players connected
             incomingText = incomingStream.readLine();
-            String usernames = incomingText.replace("[", "").replace("]", "");
-            String[] usernamesArray = usernames.split(", ");
+            usernameList = arrayFormat(incomingText);
 
             // informs client that all players connected
             System.out.println("\nAll players joined! Starting game..");
@@ -100,22 +106,27 @@ public class MafiaParticipant{
 
             // player list
                 // sets layout of player list
-                JPanel playerList = new JPanel();
-                playerList.setLayout(new GridLayout(usernamesArray.length, 1, 5, 0));
+                playersPanel.setLayout(new GridLayout(usernameList.length, 1, 5, 0));
 
-                // resize alive icon image
-                ImageIcon aliveIcon = new ImageIcon("alive.png");
-                Image aliveImage = aliveIcon.getImage();
-                Image resizedAliveImage = aliveImage.getScaledInstance(25, 25, Image.SCALE_SMOOTH);
-                aliveIcon = new ImageIcon(resizedAliveImage);
+                // resize icon images
+                aliveIcon = new ImageIcon("alive.png");
+                Image image = aliveIcon.getImage();
+                Image resizedImage = image.getScaledInstance(25, 25, Image.SCALE_SMOOTH);
+                aliveIcon = new ImageIcon(resizedImage);
+
+                    // later use
+                    deadIcon = new ImageIcon("dead.png");
+                    image = deadIcon.getImage();
+                    resizedImage = image.getScaledInstance(25, 25, Image.SCALE_SMOOTH);
+                    deadIcon = new ImageIcon(resizedImage);
 
                 // inserts label of each player into the player list panel
-                for (int i = 0; i < usernamesArray.length; i++){
-                    playerList.add(new JLabel(usernamesArray[i], aliveIcon, JLabel.LEFT));
+                for (int i = 0; i < usernameList.length; i++){
+                    playersPanel.add(new JLabel(usernameList[i], aliveIcon, JLabel.LEFT));
                 }
             
                 // adds player list panel to game window
-                gameWindow.add(playerList, BorderLayout.CENTER);
+                gameWindow.add(playersPanel, BorderLayout.CENTER);
             
             // role
                 JPanel clientRole = new JPanel();
@@ -166,6 +177,13 @@ public class MafiaParticipant{
         }
     }
 
+    // converts a string into an array
+    private static String[] arrayFormat(String string){
+        String stringCleanup = string.replace("[", "").replace("]", "");
+        String[] stringArray = stringCleanup.split(", ");
+        return stringArray;
+    }
+
     // night state for the client side
     public static void clientNightState() throws IOException {
         // signals client the beginning of night time
@@ -177,31 +195,67 @@ public class MafiaParticipant{
             
             // compares client role to initate proper 
                 if (incomingText.equals("Mafia")){
-                    // displays a list of players with "Alive" status
-                    System.out.println("--List of Alive Players--");
+                    // gets array of all Civilians alive
                     incomingText = incomingStream.readLine();
-                    System.out.println(incomingText);
+                    usernameList = arrayFormat(incomingText);
 
-                    // asks client to input a person to elimate
-                    System.out.print("Choose player to elimate: ");
-                    outgoingText = "NONE";
-                    
-                    while (ServerModerator.timer == 1){
-                        if (System.in.available() > 0){
-                            outgoingText = input.nextLine();
+                    // GUI pane for Mafia to choose a player to eliminate
+                    JOptionPane choosingPlayerPane =new JOptionPane("Choose player to eliminate:", JOptionPane.QUESTION_MESSAGE,  JOptionPane.OK_CANCEL_OPTION);
+                    choosingPlayerPane.setSelectionValues(usernameList);
+                    choosingPlayerPane.setInitialSelectionValue(usernameList[0]); 
+                    JDialog playerElimination = choosingPlayerPane.createDialog(gameWindow, "Player Elimination");
+
+                    // sets a time limit for Mafia during player elimination
+                    javax.swing.Timer timer = new javax.swing.Timer(9000, e -> playerElimination.dispose());
+                    timer.setRepeats(false);
+                    timer.start();
+
+                    // ensures GUI pane is available to Mafia during timer run
+                    Object playerChoosen = "";
+                    while (timer.isRunning()){
+                        playerElimination.setVisible(true);
+
+                        // closes pane and stops timer once Mafia chooses player
+                        playerChoosen = choosingPlayerPane.getInputValue();
+                        if (playerChoosen != null && playerChoosen != JOptionPane.UNINITIALIZED_VALUE){
+                            timer.stop();
                             break;
                         }
                     }
-                    outgoingStream.println(outgoingText);
-               
+                    
+                    // converts choosen player object to string
+                    String playerEliminated = (String) playerChoosen;
+                    outgoingStream.println(playerEliminated);
                 } else if (incomingText.equals("Civilian")){
                     // puts client in a waiting state until timer reaches 0
                     System.out.println("Waiting for Mafia to choose victim...");
                 }
             
+            // GUI window update
+                // gets list of all Civilians and their status
+                incomingText = incomingStream.readLine();
+                usernameList = arrayFormat(incomingText);
+                incomingText = incomingStream.readLine();
+                statusList = arrayFormat(incomingText);
+
+                // updates panel to showcase players that alive or dead
+                playersPanel.removeAll();
+                for (int i = 0; i < usernameList.length; i++){
+                    if (statusList[i].equals("Dead")){
+                        playersPanel.add(new JLabel(usernameList[i], deadIcon, JLabel.LEFT));
+                    } else if (statusList[i].equals("Alive")){
+                        playersPanel.add(new JLabel(usernameList[i], aliveIcon, JLabel.LEFT));
+                    }
+                }
+                
+
+            playersPanel.revalidate();
+            playersPanel.repaint();
+
             // waits until recieves signal that night time has ended
             incomingText = incomingStream.readLine();
             System.out.println(incomingText);
+
         } catch(Exception e) {
             e.printStackTrace();
         }

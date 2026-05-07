@@ -15,6 +15,10 @@ public class ClientHandler implements Runnable{
     private String username;
     private String role;
 
+    // clients information
+    private ArrayList<String> usernames;
+    private ArrayList<String> statuses;
+
     // constructor
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
@@ -54,7 +58,7 @@ public class ClientHandler implements Runnable{
 
             // signals client to begin game
                 // reveals client the list of players connected
-                ArrayList<String> usernames = ServerModerator.usernamesArrayList();
+                usernames = ServerModerator.usernamesArrayList();
                 outgoingStream.println(usernames);
 
                 // reveals client their role
@@ -71,19 +75,26 @@ public class ClientHandler implements Runnable{
                     outgoingStream.println(role);
 
                     if (role.equals("Mafia")){
-                        ServerModerator.alivePlayersList();
+                        //reveals list of players alive to Mafia
+                        usernames = ServerModerator.alivePlayersList();
+                        outgoingStream.println(usernames);
 
+                        // sents Mafia's choice to server
                         incomingText = incomingStream.readLine();
-                        
-                        if (!incomingText.equals("NONE"))
-                            ServerModerator.eliminatedPlayer(incomingText);
+                        ServerModerator.eliminatedPlayer(incomingText);
 
+                        // puts Mafia into the waiting room after choosing player or timer run out
                         ServerModerator.playersCount = ServerModerator.MAX_PLAYERS;
                         ServerModerator.clientWaitingRoom();
                     } else if (role.equals("Civilian")){
                         // puts client with "Civilian" roles in the waiting room
                         ServerModerator.clientWaitingRoom();
                     }
+
+                    usernames = ServerModerator.usernamesArrayList();
+                    statuses = ServerModerator.statusArrayList();
+                    outgoingStream.println(usernames);
+                    outgoingStream.println(statuses);
 
                     ServerModerator.playersCount--;
                     outgoingStream.println("Night time has ended.");
