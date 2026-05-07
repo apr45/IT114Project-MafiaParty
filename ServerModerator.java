@@ -8,10 +8,8 @@ public class ServerModerator{
 
     // variables to track data
     public static volatile String gameState = "";
-    public static volatile int timer = 1;
     public static volatile boolean targetChoosen = false;
     private static boolean exitWaitingState = false;
-
 
     // variables to keep track of number of players
     public static final int MAX_PLAYERS = 2; // TODO: change max players to 5
@@ -29,8 +27,10 @@ public class ServerModerator{
     // list of available roles
     private static final String[] ROLELIST = {"Mafia", "Civilian"};
 
-    // variable to keep track of votes
-    private static int voteCount = 0;
+    // tracks votes
+    private static int[] votes;
+    private static int highestVoteIndex;
+    private static boolean tieVote;
 
     public static void main(String[] args) throws IOException{
         // connection variables
@@ -202,6 +202,21 @@ public class ServerModerator{
             return usernames;
         }
 
+        // displays a list of players that are alive to Mafia only; update later to implement GUI 
+        public static ArrayList<String> alivePlayersList(){
+            ArrayList<String> alivePlayers = new ArrayList<String>();
+
+            for (int i = 0; i < MAX_PLAYERS; i++){
+                if (statuses.get(i).equals("Alive") && roles.get(i).equals("Civilian") && gameState.equals("NIGHTSTATE")){
+                    alivePlayers.add(usernames.get(i));
+                } else if (statuses.get(i).equals("Alive") && gameState.equals("DAYSTATE")){
+                    alivePlayers.add(usernames.get(i));
+                }
+            }
+        
+            return alivePlayers;
+        }
+
         public static ArrayList<String> statusArrayList(){
             return statuses;
         }
@@ -213,7 +228,7 @@ public class ServerModerator{
             System.out.println("\nNight State has begun for players. Starting time limit for Mafia to elimate player...");
             gameState = "NIGHTSTATE";
 
-            // initates a timer for Mafia to vote
+            // initates a timer for server to wait during player elimination
             try{
                 Thread.sleep(10000); // TODO: change timer to 30 - 60 seconds
             } catch (InterruptedException e){
@@ -240,29 +255,19 @@ public class ServerModerator{
             while (playersCount > 0){
                 Thread.sleep(1000);
             }
+
+            // resets waiting room
+            exitWaitingState = false;
         } catch(Exception e) {
             e.printStackTrace();
         }
     }
 
-    // displays a list of players that are alive to Mafia only; update later to implement GUI 
-    public static ArrayList<String> alivePlayersList(){
-        ArrayList<String> alivePlayers = new ArrayList<String>();
-
-        for (int i = 0; i < usernames.size(); i++){
-            if (statuses.get(i).equals("Alive") && roles.get(i).equals("Civilian"))
-                alivePlayers.add(usernames.get(i));
-        }
-        
-        return alivePlayers;
-    }
-
-    // updates client's information based on Mafia's choice
+    // updates client's information based on Mafia's choice or highest vote count
     public static void eliminatedPlayer(String username){
-        for (int i = 0; i < usernames.size(); i++){
+        for (int i = 0; i < MAX_PLAYERS; i++){
             if (usernames.get(i).equals(username)){
                 statuses.set(i, "Dead");
-                roles.set(i, "Ghost");
             }
         }
     }
@@ -273,22 +278,79 @@ public class ServerModerator{
         System.out.println("\nDay State has begun for players. Starting time limit for discussion...");
         gameState = "DAYSTATE";
 
+        // initates a timer for server to wait during client discussion
         try{
-            Thread.sleep(15000); // TODO: change timer to 5 minutes
+            Thread.sleep(10000); // TODO: change timer to 5 minutes
         } catch (InterruptedException e){
             e.printStackTrace();
         }
 
         // signals server timer hits 0 and initate for player voting
-        timer = 0;
-        gameState = "";
         System.out.println("Time reached zero. Move on to voting..");
+        votes = new int[MAX_PLAYERS];
+
+        // initiates a timer for server to wait during voting
+         try{
+            Thread.sleep(11000);
+        } catch (InterruptedException e){
+            e.printStackTrace();
+        }
+
+        // calculating which player was the highest votes
+        highestVoteIndex = 0;
+        tieVote = false;
+        int highestVoteCount = 0;
+        System.out.println("Voting is over. Counting votes..");
+        for (int i = 0; i < MAX_PLAYERS; i++){
+            if (votes[i] > highestVoteCount){
+                highestVoteCount = votes[i];
+                highestVoteIndex = i;
+            }
+        }
+
+        // checks if more than two players tied in votes
+        int duplicateVote = 0;
+        for (int vote : votes){
+            if (vote == highestVoteCount){
+                duplicateVote ++;
+            }
+        }
+        if (duplicateVote > 1){
+            tieVote = true;
+        }
+
+        // changes highest voted player's status and role if no tied votes
+        if (tieVote == false){
+            eliminatedPlayer(usernames.get(highestVoteIndex));
+        }
+
+        // displays updated information
+        System.out.println("\n--Game Information--");
+        System.out.println("List of players: " + usernames);
+        System.out.println("List of roles: " + roles);
+        System.out.println("List of statuses: " + statuses);
+
+        gameState = "";
+
+        // removes all clients from waiting room
+        synchronized (GAME_LOCK) {
+            GAME_LOCK.notifyAll();
+        }
+
+        // waiting state until all clients leave waiting room
+        try{
+            while (playersCount > 0){
+                Thread.sleep(1000);
+            }
+        } catch (InterruptedException e){
+
+        }
     }
 
     // displays client message to other clients
     public synchronized static void broadcast(String username, String message){
         try {
-            for (int i = 0; i < usernames.size(); i++){
+            for (int i = 0; i < MAX_PLAYERS; i++){
                 // prevent the original sender to recieve message
                 if (!usernames.get(i).equals(username) /*&& statuses.get(i).equals("Alive")*/){
                     outgoingStreams.get(i).println(username + ": " + message);
@@ -297,6 +359,35 @@ public class ServerModerator{
         } catch(Exception e) {
             e.printStackTrace();
          }
+    }
+
+    // adds player votes
+    public synchronized static void addVote(String username){
+        int index = usernames.indexOf(username);
+        if (index != -1){
+            votes[index] ++;
+        }
+    }
+
+    // displays the results after voting
+    public synchronized static void votingResults(){
+        // informs player based if there is a tie or not
+         for (int i = 0; i < MAX_PLAYERS; i ++){
+            if (tieVote == false){
+                // displays player with highest counts on votes
+                outgoingStreams.get(i).println("Most Voted Player: " + usernames.get(highestVoteIndex));
+
+                // reveals if player is Mafia or not
+                if (roles.get(highestVoteIndex).equals("Mafia")){
+                    outgoingStreams.get(i).println(usernames.get(highestVoteIndex) + " is the Mafia.");
+                } else {
+                    outgoingStreams.get(i).println(usernames.get(highestVoteIndex) + " is not the Mafia.");
+                }
+            } else {
+                outgoingStreams.get(i).println("Votes were tied.");
+                outgoingStreams.get(i).println("No player will be eliminated.");
+            }
+        }
     }
 
 /*  // temp end game method to determine winning team and display appropriate message to clients

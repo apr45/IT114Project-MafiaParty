@@ -75,7 +75,7 @@ public class ClientHandler implements Runnable{
                     outgoingStream.println(role);
 
                     if (role.equals("Mafia")){
-                        //reveals list of players alive to Mafia
+                        //reveals list of Civilians alive to Mafia
                         usernames = ServerModerator.alivePlayersList();
                         outgoingStream.println(usernames);
 
@@ -109,6 +109,7 @@ public class ClientHandler implements Runnable{
                         // stores client input
                         incomingText = incomingStream.readLine();
 
+                        // recieves signal to stop managing messages if timer reaches zero
                         if (incomingText.equals("END")){
                             // signals client to exit chat room
                             outgoingStream.println("EXIT");
@@ -118,14 +119,35 @@ public class ClientHandler implements Runnable{
                             ServerModerator.broadcast(username, incomingText);
                         }
                     }
-
+                    
+                    // informs client to vote a from a list of alive players
                     outgoingStream.println("Times up! Vote who you think is Mafia.");
+                    usernames = ServerModerator.alivePlayersList();
+                    outgoingStream.println(usernames);
+                    
+                    // recives player's vote and sends to server to add vote
+                    incomingText = incomingStream.readLine();
+                    ServerModerator.addVote(incomingText);
+                    
+                    // puts client in waiting room until voting is over
+                    ServerModerator.playersCount++;
+                    ServerModerator.clientWaitingRoom();
+
+                    // informs client that voting is over and initiates results
+                    outgoingStream.println("Voting Over!");
+                    ServerModerator.votingResults();
+
+                    // reveals list of all players and their statuses
+                    usernames = ServerModerator.usernamesArrayList();
+                    statuses = ServerModerator.statusArrayList();
+                    outgoingStream.println(usernames);
+                    outgoingStream.println(statuses);
+                    ServerModerator.playersCount--;
                 } else if (ServerModerator.gameState.equals("ENDSTATE")) {
                     ServerModerator.playersCount++;
                     outgoingStream.println(ServerModerator.gameState);
                 }
             }
-
         } catch (IOException e){
             e.printStackTrace();
         } catch (InterruptedException e) {

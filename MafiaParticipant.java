@@ -2,8 +2,6 @@ import java.net.*;
 import java.io.*;
 import java.util.*;
 import javax.swing.*;
-import javax.swing.Timer;
-
 import java.awt.*;
 
 public class MafiaParticipant{
@@ -192,8 +190,24 @@ public class MafiaParticipant{
         return stringArray;
     }
 
+    private static void updatingMainWindow(){
+        // updates panel to showcase players that alive or dead
+        playersPanel.removeAll();
+        for (int i = 0; i < usernameList.length; i++){
+            if (statusList[i].equals("Dead")){
+                playersPanel.add(new JLabel(usernameList[i], deadIcon, JLabel.LEFT));
+            } else if (statusList[i].equals("Alive")){
+                playersPanel.add(new JLabel(usernameList[i], aliveIcon, JLabel.LEFT));
+                }
+            }
+                
+        // refreshes players panel to showcase update
+        playersPanel.revalidate();
+        playersPanel.repaint();
+    }
+
     // night state for the client side
-    public static void clientNightState() throws IOException {
+    private static void clientNightState() throws IOException {
         // signals client the beginning of night time
         System.out.println("\nNight has fallen. Civilians fall asleep as Mafia chooses their victim.");
 
@@ -240,25 +254,11 @@ public class MafiaParticipant{
                 }
             
             // GUI window update
-                // gets list of all Civilians and their status
-                incomingText = incomingStream.readLine();
-                usernameList = arrayFormat(incomingText);
-                incomingText = incomingStream.readLine();
-                statusList = arrayFormat(incomingText);
-
-                // updates panel to showcase players that alive or dead
-                playersPanel.removeAll();
-                for (int i = 0; i < usernameList.length; i++){
-                    if (statusList[i].equals("Dead")){
-                        playersPanel.add(new JLabel(usernameList[i], deadIcon, JLabel.LEFT));
-                    } else if (statusList[i].equals("Alive")){
-                        playersPanel.add(new JLabel(usernameList[i], aliveIcon, JLabel.LEFT));
-                    }
-                }
-                
-            // refreshes players panel to showcase update
-            playersPanel.revalidate();
-            playersPanel.repaint();
+            incomingText = incomingStream.readLine();
+            usernameList = arrayFormat(incomingText);
+            incomingText = incomingStream.readLine();
+            statusList = arrayFormat(incomingText);
+            updatingMainWindow();
 
             // waits until recieves signal that night time has ended
             incomingText = incomingStream.readLine();
@@ -269,7 +269,7 @@ public class MafiaParticipant{
     } 
 
     // day state for the client side
-    public static void clientDayState() throws IOException{
+    private static void clientDayState() throws IOException{
         // signals players that daytime has come and preps for dissussion time
         System.out.println("\nDay has dawned. Discuss who is the Mafia.");
 
@@ -304,7 +304,7 @@ public class MafiaParticipant{
             chatroom.setVisible(true);
 
         // sets timer and initates global chat room
-        timer = new javax.swing.Timer(15000, e ->{ 
+        timer = new javax.swing.Timer(10000, e ->{ 
             chatroom.dispose();
             outgoingStream.println("END");
         });
@@ -313,12 +313,60 @@ public class MafiaParticipant{
         clientMessages();
         groupMessages();
 
+        // signals client that discussion time is over
         incomingText = incomingStream.readLine();
         System.out.println(incomingText);
+
+        // gets list of players alive
+        incomingText = incomingStream.readLine();
+        usernameList = arrayFormat(incomingText);
+
+         // GUI pane for voting
+        JOptionPane votingPane =new JOptionPane("Vote on a player:", JOptionPane.QUESTION_MESSAGE,  JOptionPane.OK_CANCEL_OPTION);
+        votingPane.setSelectionValues(usernameList);
+        votingPane.setInitialSelectionValue(usernameList[0]); 
+        JDialog playerVoting = votingPane.createDialog(gameWindow, "Player Voting");
+
+        // set timer for voting
+        timer = new javax.swing.Timer(10000, e -> playerVoting.dispose());
+        timer.setRepeats(false);
+        timer.start();
+
+        // ensures GUI pane is available to client during timer run
+        Object playerChoosen = "";
+        while (timer.isRunning()){
+            playerVoting.setVisible(true);
+
+            // closes pane and stops timer once client votes
+            playerChoosen = votingPane.getInputValue();
+            if (playerChoosen != null && playerChoosen != JOptionPane.UNINITIALIZED_VALUE){
+                timer.stop();
+                break;
+            }
+        }
+                    
+        // converts voted player object to string
+        String votedPlayer = (String) playerChoosen;
+        outgoingStream.println(votedPlayer);
+
+        // displays results of voting
+        incomingText = incomingStream.readLine();
+        System.out.println(incomingText);
+        incomingText = incomingStream.readLine();
+        System.out.println(incomingText);
+        incomingText = incomingStream.readLine();
+        System.out.println(incomingText);
+
+         // GUI window update
+        incomingText = incomingStream.readLine();
+        usernameList = arrayFormat(incomingText);
+        incomingText = incomingStream.readLine();
+        statusList = arrayFormat(incomingText);
+        updatingMainWindow();
     }
     
     // display message from other clients
-    public static void groupMessages() {
+    private static void groupMessages() {
         try{
             // waits until recieve a client message to display or until timer runs out
             while (true) {
@@ -336,7 +384,7 @@ public class MafiaParticipant{
     }
 
     // recieves input from client
-    public static void clientMessages(){
+    private static void clientMessages(){
         // sents text from text field to server if button clicked
         sendInput.addActionListener(e ->{
             outgoingText = textInput.getText();
