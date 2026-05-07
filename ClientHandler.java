@@ -91,29 +91,31 @@ public class ClientHandler implements Runnable{
                         ServerModerator.clientWaitingRoom();
                     }
 
+                    // reveals list of all players and their statuses
                     usernames = ServerModerator.usernamesArrayList();
                     statuses = ServerModerator.statusArrayList();
                     outgoingStream.println(usernames);
                     outgoingStream.println(statuses);
 
+                    // indicates the end of night state
                     ServerModerator.playersCount--;
                     outgoingStream.println("Night time has ended.");
                 } else if (ServerModerator.gameState.equals("DAYSTATE")){
                      // informs client the current state 
                     outgoingStream.println(ServerModerator.gameState);
 
+                    // handles recieving and transfering client messages
                     while (true){
-                            // stores client input
-                            incomingText = incomingStream.readLine();
+                        // stores client input
+                        incomingText = incomingStream.readLine();
 
-                        // checks if server timer reached 0
-                        if (ServerModerator.timer == 1){
-                            // passes client message into a method to share message to other clients
-                            ServerModerator.broadcast(username, incomingText);
-                        } else {
+                        if (incomingText.equals("END")){
                             // signals client to exit chat room
                             outgoingStream.println("EXIT");
                             break;
+                        } else {
+                            // passes client input into a method to share message to other clients
+                            ServerModerator.broadcast(username, incomingText);
                         }
                     }
 

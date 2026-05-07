@@ -222,7 +222,6 @@ public class ServerModerator{
 
             // once timer reaches, ends night time
             System.out.println("Timer reached zero. Night State has ended.");
-            timer = 0;
 
             // displays updated game information regarding players, roles, and statuses
             System.out.println("\n--Game Information--");
@@ -275,7 +274,7 @@ public class ServerModerator{
         gameState = "DAYSTATE";
 
         try{
-            Thread.sleep(10000); // TODO: change timer to 5 minutes
+            Thread.sleep(15000); // TODO: change timer to 5 minutes
         } catch (InterruptedException e){
             e.printStackTrace();
         }

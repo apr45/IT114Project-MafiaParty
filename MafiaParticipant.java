@@ -2,6 +2,8 @@ import java.net.*;
 import java.io.*;
 import java.util.*;
 import javax.swing.*;
+import javax.swing.Timer;
+
 import java.awt.*;
 
 public class MafiaParticipant{
@@ -10,17 +12,23 @@ public class MafiaParticipant{
     private static PrintWriter outgoingStream = null;
     private static String incomingText, outgoingText;
 
-    // GUI components
+    // main GUI components
     private static JFrame gameWindow = new JFrame("Mafia Party");
     private static JPanel playersPanel = new JPanel();
     private static ImageIcon aliveIcon;
     private static ImageIcon deadIcon;
 
+    // chatroom GUI components
+    private static JButton sendInput;
+    private static JTextField textInput;
+    private static JTextArea textArea;
+
     // tracks players information
     private static String[] usernameList;
     private static String[] statusList;
 
-    static Thread clientText;
+    // timer
+    private static javax.swing.Timer timer;
 
     // scanner for user input
     static private Scanner input = new Scanner(System.in);
@@ -206,7 +214,7 @@ public class MafiaParticipant{
                     JDialog playerElimination = choosingPlayerPane.createDialog(gameWindow, "Player Elimination");
 
                     // sets a time limit for Mafia during player elimination
-                    javax.swing.Timer timer = new javax.swing.Timer(9000, e -> playerElimination.dispose());
+                    timer = new javax.swing.Timer(9000, e -> playerElimination.dispose());
                     timer.setRepeats(false);
                     timer.start();
 
@@ -248,27 +256,60 @@ public class MafiaParticipant{
                     }
                 }
                 
-
+            // refreshes players panel to showcase update
             playersPanel.revalidate();
             playersPanel.repaint();
 
             // waits until recieves signal that night time has ended
             incomingText = incomingStream.readLine();
             System.out.println(incomingText);
-
         } catch(Exception e) {
             e.printStackTrace();
         }
     } 
 
-
     // day state for the client side
     public static void clientDayState() throws IOException{
         // signals players that daytime has come and preps for dissussion time
         System.out.println("\nDay has dawned. Discuss who is the Mafia.");
-        System.out.println("--Chat Room--");
 
-        // initates global chat room
+        //chat room GUI
+            // sets up seperate window for discussion
+            JFrame chatroom = new JFrame();
+            chatroom.setSize(500,500);
+            chatroom.setLocationRelativeTo(null);
+            chatroom.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            JLabel chatHeader = new JLabel("Chat Room");
+            chatroom.add(chatHeader, BorderLayout.NORTH);
+
+            // sets up area to showcase client text
+            textArea = new JTextArea(30,30);
+            textArea.setEditable(false);
+            textArea.setLineWrap(true);
+            textArea.setWrapStyleWord(true);
+            JScrollPane scrollPane = new JScrollPane(textArea);
+            chatroom.add(scrollPane, BorderLayout.CENTER);
+
+            // sets up field to text
+            JPanel inputArea = new JPanel();
+            JLabel inputLine = new JLabel("Input:");
+            textInput = new JTextField("", 10);
+            sendInput = new JButton("Sent");
+            inputArea.add(inputLine);
+            inputArea.add(textInput);
+            inputArea.add(sendInput);
+            chatroom.add(inputArea, BorderLayout.SOUTH);
+
+            // sets visibility of chatroom window
+            chatroom.setVisible(true);
+
+        // sets timer and initates global chat room
+        timer = new javax.swing.Timer(15000, e ->{ 
+            chatroom.dispose();
+            outgoingStream.println("END");
+        });
+        timer.setRepeats(false);
+        timer.start();
         clientMessages();
         groupMessages();
 
@@ -279,19 +320,16 @@ public class MafiaParticipant{
     // display message from other clients
     public static void groupMessages() {
         try{
+            // waits until recieve a client message to display or until timer runs out
             while (true) {
-                // waits until recieve a client message to display
                 incomingText = incomingStream.readLine();
 
                 if (incomingText.equals("EXIT")){
                     break;
                 } else {
-                    System.out.println(incomingText);
+                    textArea.append(incomingText + "\n");
                 }
             }
-
-            // interrupts thread to stop taking input
-            clientText.interrupt();
         } catch(Exception e) {
             e.printStackTrace();
         }
@@ -299,22 +337,11 @@ public class MafiaParticipant{
 
     // recieves input from client
     public static void clientMessages(){
-        // creates a new thread for client to send messages
-        clientText = new Thread(() -> {
-            try{
-                // loops for client input until thread is interrupted
-                while (true){
-                    if (Thread.currentThread().isInterrupted()){
-                        break;
-                    }
-
-                    outgoingText = input.nextLine();
-                    outgoingStream.println(outgoingText);
-                }
-            } catch (Exception e){
-            }
+        // sents text from text field to server if button clicked
+        sendInput.addActionListener(e ->{
+            outgoingText = textInput.getText();
+            outgoingStream.println(outgoingText);
+            textInput.setText("");
         });
-        
-        clientText.start();
     }
 }
