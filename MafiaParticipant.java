@@ -144,20 +144,27 @@ public class MafiaParticipant{
             gameWindow.setVisible(true);
 
         // night and day states
-            while (true){
-                // recieves type of game state from server
-                incomingText = incomingStream.readLine();
+        while (true){
+            // recieves type of game state from server
+            incomingText = incomingStream.readLine();
 
-                // initiates game state
-                if (incomingText.equals("NIGHTSTATE")){
-                    clientNightState();
-                } else if (incomingText.equals("DAYSTATE")) {
-                    clientDayState();
-                } else if (incomingText.equals("ENDSTATE")){
-                    break;
-                }
+            // initiates game state
+            if (incomingText.equals("NIGHTSTATE")){
+                clientNightState();
+            } else if (incomingText.equals("DAYSTATE")) {
+                clientDayState();
+            } else if (incomingText.equals("ENDSTATE")){
+                break;
+            }
         }
 
+        // endgame state
+        System.out.println("\nGame over!");
+        incomingText = incomingStream.readLine();
+        System.out.println(incomingText);
+        gameWindow.dispose();
+
+        // closes socket connection
         try{
                 input.close();
                 connection.close();
@@ -165,9 +172,9 @@ public class MafiaParticipant{
                     incomingStream.close();
                     outgoingStream.close();
             }
-            } catch(Exception e){
+        } catch(Exception e){
 
-            }
+         }
     }
 
     // method to validate client's username input
@@ -349,6 +356,13 @@ public class MafiaParticipant{
         String votedPlayer = (String) playerChoosen;
         outgoingStream.println(votedPlayer);
 
+        // GUI window update
+        incomingText = incomingStream.readLine();
+        usernameList = arrayFormat(incomingText);
+        incomingText = incomingStream.readLine();
+        statusList = arrayFormat(incomingText);
+        updatingMainWindow();
+
         // displays results of voting
         incomingText = incomingStream.readLine();
         System.out.println(incomingText);
@@ -356,13 +370,6 @@ public class MafiaParticipant{
         System.out.println(incomingText);
         incomingText = incomingStream.readLine();
         System.out.println(incomingText);
-
-         // GUI window update
-        incomingText = incomingStream.readLine();
-        usernameList = arrayFormat(incomingText);
-        incomingText = incomingStream.readLine();
-        statusList = arrayFormat(incomingText);
-        updatingMainWindow();
     }
     
     // display message from other clients

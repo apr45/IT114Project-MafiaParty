@@ -102,44 +102,40 @@ public class ServerModerator{
         // enters server into a night and day cycle
             // TODO: update to loop until a win condition
         while(true){
+            // night and day cycle
             serverNightState();
             serverDayState();
-
-            gameState = "ENDSTATE";
-            break; //temp break
-        
             
-        /*  // temp code to check for end game conditions
-            int countAlive = Collections.frequency(status, "Alive");
-            if (countAlive == 1 && roles.contains("Mafia")) {
-                endGame(0);
-                // code to exit loop will be implemented here
-            } else if (roles.contains("Mafia")) {
-                endGame(1);
-                // code to exit loop will be implemented here
-            } else{
-                outgoingStream.println("CONTINUE");
-            }
-        } catch(Exception e) {
-            e.printStackTrace();
-        } finally {
-            try{
-                clientSocket.close();
-            } catch(Exception e){
-            }
-        }*/
-       }
+            // end game conditions
+                // checks if 2 or less players are alive
+                int countAlive = Collections.frequency(statuses, "Alive");
+                if (countAlive <= 2){
+                    // indicates the end of the game
+                    gameState = "ENDSTATE";
+
+                    // checks if Mafia is still alive
+                    if (statuses.get(roles.indexOf("Mafia")).equals("Alive")) {
+                        endGame(0);
+                        break;
+                    } else {
+                        endGame(1);
+                        break;
+                    }
+                }
+        }
 
        try{
-        while (playersCount < MAX_PLAYERS){
+        /*while (playersCount < MAX_PLAYERS){
                 Thread.sleep(1000);
-            }
+            }*/
 
+        System.out.println("Closing game...");
         System.exit(0);
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             e.printStackTrace();    
         }
-}
+
+    }
 
     // check for duplicate usernames
     public synchronized static boolean doubleUsername(String username){
@@ -341,10 +337,13 @@ public class ServerModerator{
         try{
             while (playersCount > 0){
                 Thread.sleep(1000);
-            }
+            }  
         } catch (InterruptedException e){
 
         }
+
+        // resets waiting room
+        exitWaitingState = false;
     }
 
     // displays client message to other clients
@@ -390,18 +389,24 @@ public class ServerModerator{
         }
     }
 
-/*  // temp end game method to determine winning team and display appropriate message to clients
+    // determines winning team and display appropriate message to clients
     public static void endGame(int winningTeam) {
         try {
-            outgoingStream.println("EXIT");
-            outgoingStream.println("Game over. The winning team is...");
-            if (winningTeam == 0) {
-                outgoingStream.println("Mafia wins!");
-            } else if (winningTeam == 1) {
-                outgoingStream.println("Civilians win!");
+            // informs server that game is coming to an end
+            System.out.println("\nWinning condition has been met. Calculating winning team...");
+
+            // calculates winning team
+            for (int i = 0; i < MAX_PLAYERS; i++){
+                if (!statuses.get(i).equals("Disconnected")){
+                    if (winningTeam == 0) {
+                        outgoingStreams.get(i).println("Mafia wins!");
+                    } else if (winningTeam == 1) {
+                        outgoingStreams.get(i).println("Civilians win!");
+                    }
+                }
             }
         } catch(Exception e) {
             e.printStackTrace();
         }
-    }*/
+    }
 }

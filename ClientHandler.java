@@ -101,7 +101,7 @@ public class ClientHandler implements Runnable{
                     ServerModerator.playersCount--;
                     outgoingStream.println("Night time has ended.");
                 } else if (ServerModerator.gameState.equals("DAYSTATE")){
-                     // informs client the current state 
+                    // informs client the current state 
                     outgoingStream.println(ServerModerator.gameState);
 
                     // handles recieving and transfering client messages
@@ -133,19 +133,23 @@ public class ClientHandler implements Runnable{
                     ServerModerator.playersCount++;
                     ServerModerator.clientWaitingRoom();
 
-                    // informs client that voting is over and initiates results
-                    outgoingStream.println("Voting Over!");
-                    ServerModerator.votingResults();
-
                     // reveals list of all players and their statuses
                     usernames = ServerModerator.usernamesArrayList();
                     statuses = ServerModerator.statusArrayList();
                     outgoingStream.println(usernames);
                     outgoingStream.println(statuses);
+
+                    // informs client that voting is over and initiates results
+                    outgoingStream.println("Voting Over!");
+                    ServerModerator.votingResults();
                     ServerModerator.playersCount--;
                 } else if (ServerModerator.gameState.equals("ENDSTATE")) {
-                    ServerModerator.playersCount++;
+                    // informs client the current state 
                     outgoingStream.println(ServerModerator.gameState);
+                    
+                    // recieves signal to close bridge connection
+                    ServerModerator.playersCount++;
+                    break;
                 }
             }
         } catch (IOException e){
