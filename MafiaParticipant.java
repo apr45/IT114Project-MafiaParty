@@ -3,6 +3,7 @@ import java.io.*;
 import java.util.*;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 
 public class MafiaParticipant{
     // input and output streams
@@ -11,7 +12,7 @@ public class MafiaParticipant{
     private static String incomingText, outgoingText;
 
     // main GUI components
-    private static JFrame gameWindow = new JFrame("Mafia Party");
+    private static JFrame gameWindow;
     private static JPanel playersPanel = new JPanel();
     private static ImageIcon aliveIcon;
     private static ImageIcon deadIcon;
@@ -29,7 +30,10 @@ public class MafiaParticipant{
     private static javax.swing.Timer timer;
 
     // scanner for user input
-    static private Scanner input = new Scanner(System.in);
+    private static Scanner input = new Scanner(System.in);
+
+    // client username
+    private static String username;
 
     public static void main(String[] args) throws IOException{
         // connection variables
@@ -38,8 +42,6 @@ public class MafiaParticipant{
         final int PORT = 2005;
 
         // inital username input and server connection
-            String username; // stores client's username
-
             System.out.print("Enter your name: "); // prompts client to enter username
 
             // ensures valid username before connecting to server
@@ -56,7 +58,7 @@ public class MafiaParticipant{
                         incomingStream = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                     } catch(SocketException e) {
                         // signals client that server can not accept any more connections
-                        System.out.println("Server reached max players. Not accepting new players.");
+                        System.out.println("Server not active or reached max players.");
                         System.exit(0);
                     }
                     break;
@@ -68,41 +70,60 @@ public class MafiaParticipant{
 
         // username duplication check
         while (true) {
-            // receives server's response on whether username is valid or not to use
-            incomingText = incomingStream.readLine();
-            if (incomingText.equals("INVALID")){
-                System.out.print("Name already in use. Please enter a different name: "); // prompts client to enter a different username
+            try{
+                // receives server's response on whether username is valid or not to use
+                incomingText = incomingStream.readLine();
+                if (incomingText.equals("INVALID")){
+                    System.out.print("Name already in use. Please enter a different name: "); // prompts client to enter a different username
 
-                // ensures valid username before sending to server
-                while (true){
-                    username = input.nextLine();
-                    if (usernameValidation(username)){
-                        outgoingStream.println(username);
-                        break;
-                    }
-                }
-            } else if (incomingText.equals("VALID")){
-                break;
-            }
+                    // ensures valid username before sending to server
+                    while (true){
+                        username = input.nextLine();
+                        if (usernameValidation(username)){
+                            outgoingStream.println(username);
+                                break;
+                        }
+                 }
+                } else if (incomingText.equals("VALID")){
+                    break;
+                }  
+            } catch (IOException e){
+                System.out.println("Server shut down during set up. Closing game...");
+                System.exit(0);
+            }    
         }
 
-        // greets client and confirms connection to server
-        incomingText = incomingStream.readLine();
-        System.out.println("\nHello " + incomingText + "!");
-        System.out.println("You are connected. Waiting for other players to join...");
-
-        // waits until all players connect to server before starting game
-            // gets array of all players connected
+        try {
+            // greets client and confirms connection to server
             incomingText = incomingStream.readLine();
-            usernameList = arrayFormat(incomingText);
+            System.out.println("\nHello " + incomingText + "!");
+            System.out.println("You are connected. Waiting for other players to join...");
 
-            // informs client that all players connected
-            System.out.println("\nAll players joined! Starting game..");
+            // waits until all players connect to server before starting game
+                incomingStream.readLine();
+                incomingText = incomingStream.readLine();
+                usernameList = arrayFormat(incomingText);
+            
+                // informs client that all players connected
+                System.out.println("\nAll players joined! Starting game..");
+        } catch (IOException e){
+            System.out.println("Server shut down during set up. Closing game...");
+            System.exit(0);
+        }
+
 
         // sets up GUI window for client side
             // window size and close operation
+            gameWindow = new JFrame("Mafia Party (" + username + ")");
             gameWindow.setSize(500,500);
-            gameWindow.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            gameWindow.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            gameWindow.addWindowListener(new WindowAdapter() {
+                public void windowClosing(WindowEvent e){
+                     System.out.println("Closing window...");
+                     outgoingStream.println("WINDOW_CLOSED");
+                     System.exit(0);
+                }
+            });
 
             // header
             JPanel header = new JPanel();
@@ -128,7 +149,9 @@ public class MafiaParticipant{
 
                 // inserts label of each player into the player list panel
                 for (int i = 0; i < usernameList.length; i++){
-                    playersPanel.add(new JLabel(usernameList[i], aliveIcon, JLabel.LEFT));
+                    JLabel clientUsername = new JLabel(usernameList[i], aliveIcon, JLabel.LEFT);
+                    clientUsername.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+                    playersPanel.add(clientUsername);
                 }
             
                 // adds player list panel to game window
@@ -145,16 +168,21 @@ public class MafiaParticipant{
 
         // night and day states
         while (true){
-            // recieves type of game state from server
-            incomingText = incomingStream.readLine();
+            try{
+                // recieves type of game state from server
+                incomingText = incomingStream.readLine();
 
-            // initiates game state
-            if (incomingText.equals("NIGHTSTATE")){
-                clientNightState();
-            } else if (incomingText.equals("DAYSTATE")) {
-                clientDayState();
-            } else if (incomingText.equals("ENDSTATE")){
-                break;
+                // initiates game state
+                if (incomingText.equals("NIGHTSTATE")){
+                    clientNightState();
+                } else if (incomingText.equals("DAYSTATE")) {
+                    clientDayState();
+                } else if (incomingText.equals("ENDSTATE")){
+                    break;
+                }
+            } catch (Exception e){
+                System.out.println(e.getMessage());
+                System.exit(0);
             }
         }
 
@@ -202,9 +230,13 @@ public class MafiaParticipant{
         playersPanel.removeAll();
         for (int i = 0; i < usernameList.length; i++){
             if (statusList[i].equals("Dead")){
-                playersPanel.add(new JLabel(usernameList[i], deadIcon, JLabel.LEFT));
+                JLabel clientUsername = new JLabel(usernameList[i], deadIcon, JLabel.LEFT);
+                clientUsername.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+                playersPanel.add(clientUsername);
             } else if (statusList[i].equals("Alive")){
-                playersPanel.add(new JLabel(usernameList[i], aliveIcon, JLabel.LEFT));
+                JLabel clientUsername = new JLabel(usernameList[i], aliveIcon, JLabel.LEFT);
+                clientUsername.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+                playersPanel.add(clientUsername);
                 }
             }
                 
@@ -214,53 +246,54 @@ public class MafiaParticipant{
     }
 
     // night state for the client side
-    private static void clientNightState() throws IOException {
+    private static void clientNightState() throws Exception {
         // signals client the beginning of night time
         System.out.println("\nNight has fallen. Civilians fall asleep as Mafia chooses their victim.");
 
-        try {
-            // block until recieves client role
-            incomingText = incomingStream.readLine();
+        // block until recieves client role
+        incomingText = incomingStream.readLine();
             
-            // compares client role to initate proper 
-                if (incomingText.equals("Mafia")){
-                    // gets array of all Civilians alive
-                    incomingText = incomingStream.readLine();
-                    usernameList = arrayFormat(incomingText);
+        // compares client role to initate proper 
+            if (incomingText.equals("Mafia")){
+                // gets array of all Civilians alive
+                incomingText = incomingStream.readLine();
+                usernameList = arrayFormat(incomingText);
 
-                    // GUI pane for Mafia to choose a player to eliminate
-                    JOptionPane choosingPlayerPane =new JOptionPane("Choose player to eliminate:", JOptionPane.QUESTION_MESSAGE,  JOptionPane.OK_CANCEL_OPTION);
-                    choosingPlayerPane.setSelectionValues(usernameList);
-                    choosingPlayerPane.setInitialSelectionValue(usernameList[0]); 
-                    JDialog playerElimination = choosingPlayerPane.createDialog(gameWindow, "Player Elimination");
+                // GUI pane for Mafia to choose a player to eliminate
+                JOptionPane choosingPlayerPane =new JOptionPane("Choose player to eliminate:", JOptionPane.QUESTION_MESSAGE,  JOptionPane.OK_CANCEL_OPTION);
+                choosingPlayerPane.setSelectionValues(usernameList);
+                choosingPlayerPane.setInitialSelectionValue(usernameList[0]); 
+                JDialog playerElimination = choosingPlayerPane.createDialog(gameWindow, "Player Elimination");
 
-                    // sets a time limit for Mafia during player elimination
-                    timer = new javax.swing.Timer(9000, e -> playerElimination.dispose());
-                    timer.setRepeats(false);
-                    timer.start();
+                // sets a time limit for Mafia during player elimination
+                timer = new javax.swing.Timer(9000, e -> playerElimination.dispose());
+                timer.setRepeats(false);
+                timer.start();
 
-                    // ensures GUI pane is available to Mafia during timer run
-                    Object playerChoosen = "";
-                    while (timer.isRunning()){
-                        playerElimination.setVisible(true);
+                // ensures GUI pane is available to Mafia during timer run
+                Object playerChoosen = "";
+                while (timer.isRunning()){
+                    playerElimination.setVisible(true);
 
-                        // closes pane and stops timer once Mafia chooses player
-                        playerChoosen = choosingPlayerPane.getInputValue();
-                        if (playerChoosen != null && playerChoosen != JOptionPane.UNINITIALIZED_VALUE){
-                            timer.stop();
-                            break;
-                        }
+                    // closes pane and stops timer once Mafia chooses player
+                    playerChoosen = choosingPlayerPane.getInputValue();
+                    if (playerChoosen != null && playerChoosen != JOptionPane.UNINITIALIZED_VALUE){
+                        timer.stop();
+                        break;
                     }
-                    
-                    // converts choosen player object to string
-                    String playerEliminated = (String) playerChoosen;
-                    outgoingStream.println(playerEliminated);
-                } else if (incomingText.equals("Civilian")){
-                    // puts client in a waiting state until timer reaches 0
-                    System.out.println("Waiting for Mafia to choose victim...");
                 }
+                    
+                // converts choosen player object to string
+                String playerEliminated = (String) playerChoosen;
+                outgoingStream.println(playerEliminated);
+            } else if (incomingText.equals("Civilian")){
+                // puts client in a waiting state until timer reaches 0
+                System.out.println("Waiting for Mafia to choose victim...");
+            }
             
+        try {
             // GUI window update
+            incomingStream.readLine();
             incomingText = incomingStream.readLine();
             usernameList = arrayFormat(incomingText);
             incomingText = incomingStream.readLine();
@@ -270,13 +303,13 @@ public class MafiaParticipant{
             // waits until recieves signal that night time has ended
             incomingText = incomingStream.readLine();
             System.out.println(incomingText);
-        } catch(Exception e) {
-            e.printStackTrace();
+        } catch (SocketException e){
+            throw new Exception("Server shut down during player elimination. Closing game...");
         }
     } 
 
     // day state for the client side
-    private static void clientDayState() throws IOException{
+    private static void clientDayState() throws Exception{
         // signals players that daytime has come and preps for dissussion time
         System.out.println("\nDay has dawned. Discuss who is the Mafia.");
 
@@ -351,29 +384,34 @@ public class MafiaParticipant{
                 break;
             }
         }
-                    
+     
         // converts voted player object to string
         String votedPlayer = (String) playerChoosen;
         outgoingStream.println(votedPlayer);
+        
+        try {       
+            // GUI window update
+            incomingStream.readLine();
+            incomingText = incomingStream.readLine();
+            usernameList = arrayFormat(incomingText);
+            incomingText = incomingStream.readLine();
+            statusList = arrayFormat(incomingText);
+            updatingMainWindow();
 
-        // GUI window update
-        incomingText = incomingStream.readLine();
-        usernameList = arrayFormat(incomingText);
-        incomingText = incomingStream.readLine();
-        statusList = arrayFormat(incomingText);
-        updatingMainWindow();
-
-        // displays results of voting
-        incomingText = incomingStream.readLine();
-        System.out.println(incomingText);
-        incomingText = incomingStream.readLine();
-        System.out.println(incomingText);
-        incomingText = incomingStream.readLine();
-        System.out.println(incomingText);
+            // displays results of voting
+            incomingText = incomingStream.readLine();
+            System.out.println(incomingText);
+            incomingText = incomingStream.readLine();
+            System.out.println(incomingText);
+            incomingText = incomingStream.readLine();
+            System.out.println(incomingText);
+        } catch (Exception e){
+            throw new Exception("Server shut down during global voting. Closing game...");
+        }
     }
     
     // display message from other clients
-    private static void groupMessages() {
+    private static void groupMessages() throws Exception{
         try{
             // waits until recieve a client message to display or until timer runs out
             while (true) {
@@ -385,8 +423,10 @@ public class MafiaParticipant{
                     textArea.append(incomingText + "\n");
                 }
             }
-        } catch(Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            throw new Exception("Server shut down during global discussion. Closing game...");
+        } catch (Exception e)   {
+            throw new Exception("Error occured during global discussion. Closing game...");
         }
     }
 

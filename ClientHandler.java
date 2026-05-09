@@ -9,7 +9,7 @@ public class ClientHandler implements Runnable{
     // client input and output streams
     private BufferedReader incomingStream = null;
     private PrintWriter outgoingStream = null;
-    private static String incomingText;
+    private String incomingText;
 
     // client information
     private String username;
@@ -114,35 +114,43 @@ public class ClientHandler implements Runnable{
                             // signals client to exit chat room
                             outgoingStream.println("EXIT");
                             break;
-                        } else {
+                        } else if (incomingText.equals("WINDOW_CLOSED")){
+                            ServerModerator.clientDisconnected = true;
+                            return;
+                        } else{
                             // passes client input into a method to share message to other clients
                             ServerModerator.broadcast(username, incomingText);
                         }
                     }
                     
-                    // informs client to vote a from a list of alive players
-                    outgoingStream.println("Times up! Vote who you think is Mafia.");
-                    usernames = ServerModerator.alivePlayersList();
-                    outgoingStream.println(usernames);
+                    try{
+                        // informs client to vote a from a list of alive players
+                        outgoingStream.println("Times up! Vote who you think is Mafia.");
+                        usernames = ServerModerator.alivePlayersList();
+                        outgoingStream.println(usernames);
                     
-                    // recives player's vote and sends to server to add vote
-                    incomingText = incomingStream.readLine();
-                    ServerModerator.addVote(incomingText);
-                    
-                    // puts client in waiting room until voting is over
-                    ServerModerator.playersCount++;
-                    ServerModerator.clientWaitingRoom();
+                        // recives player's vote and sends to server to add vote
+                        incomingText = incomingStream.readLine();
+                        ServerModerator.addVote(incomingText);
 
-                    // reveals list of all players and their statuses
-                    usernames = ServerModerator.usernamesArrayList();
-                    statuses = ServerModerator.statusArrayList();
-                    outgoingStream.println(usernames);
-                    outgoingStream.println(statuses);
+                        // puts client in waiting room until voting is over
+                        ServerModerator.playersCount++;
+                        ServerModerator.clientWaitingRoom();
+                        
+                        // reveals list of all players and their statuses
+                        usernames = ServerModerator.usernamesArrayList();
+                        statuses = ServerModerator.statusArrayList();
+                        outgoingStream.println(usernames);
+                        outgoingStream.println(statuses);
 
-                    // informs client that voting is over and initiates results
-                    outgoingStream.println("Voting Over!");
-                    ServerModerator.votingResults();
-                    ServerModerator.playersCount--;
+                        // informs client that voting is over and initiates results
+                        outgoingStream.println("Voting Over!");
+                        ServerModerator.votingResults();
+                        ServerModerator.playersCount--;
+                
+                    } catch (SocketException e){
+                        
+                    }
                 } else if (ServerModerator.gameState.equals("ENDSTATE")) {
                     // informs client the current state 
                     outgoingStream.println(ServerModerator.gameState);

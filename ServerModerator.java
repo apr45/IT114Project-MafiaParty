@@ -32,12 +32,25 @@ public class ServerModerator{
     private static int highestVoteIndex;
     private static boolean tieVote;
 
-    public static void main(String[] args) throws IOException{
-        // connection variables
-        final int PORT = 2005;
-        ServerSocket serverSocket = new ServerSocket(PORT);
-        Socket clientSocket;
+    // sockets
+    private static Socket clientSocket;
+    private static ServerSocket serverSocket;
 
+    public static boolean clientDisconnected = false;
+
+    public static void main(String[] args){
+        try{
+            // connection variables
+            final int PORT = 2005;
+            serverSocket = new ServerSocket(PORT);
+        } catch (BindException e){
+            System.out.println("Port already in use.");
+            System.exit(0);
+        } catch (IOException e){
+            System.out.println(e.getMessage());
+            System.exit(0);
+        }
+        
         // connects client to server until max number of players is reached
         while (playersCount < MAX_PLAYERS) {
             try {
@@ -57,24 +70,25 @@ public class ServerModerator{
             }
         }
 
-        // closes server socket once max number of players is reached
-        serverSocket.close();
-        System.out.println("Max number of players reached. No longer accepting connections.");
-
-        // temp code to stop server execution if a client disconnected; fix later as code gets blocked by readLine()
-        /*for (BufferedReader clientStream : incomingStreams){
-            try {
-                String line = clientStream.readLine();
-            } catch (SocketException e){
-                System.out.println("One or more disconnections. Closing game...");
-                System.exit(0);
-            }
-        }*/
+        try{
+            // closes server socket once max number of players is reached
+            serverSocket.close();
+            System.out.println("Max number of players reached. No longer accepting connections.");
+        } catch (IOException e){
+            System.out.println(e.getMessage());
+            System.exit(0);
+        }
         
         try {
             // waiting state until all clients set up information and enter waiting room
             while (exitWaitingState == false){
                 Thread.sleep(1000);
+            }
+
+            // checks for any disconnections
+            cilentConnectionsCheck();
+            if (clientDisconnected){
+                throw new SocketException();
             }
 
             // displays game information regarding players, roles, and statuses
@@ -95,16 +109,27 @@ public class ServerModerator{
 
             // resets waiting room
             exitWaitingState = false;
+        } catch (SocketException e){
+            System.out.println("One or more disconnections occured during set up. Closing game...");
+            System.exit(0);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println("Interrupted occurred during set up. Closing game...");
+            System.exit(0);
+        } catch (Exception e){
+            System.out.println("An error occurred during set up. Closing game...");
+            System.exit(0);
         }
 
         // enters server into a night and day cycle
-            // TODO: update to loop until a win condition
         while(true){
-            // night and day cycle
-            serverNightState();
-            serverDayState();
+            try {
+                // night and day cycle
+                serverNightState();
+                serverDayState();
+            } catch (Exception e){
+                System.out.println(e.getMessage());
+                System.exit(0);
+            }
             
             // end game conditions
                 // checks if 2 or less players are alive
@@ -124,23 +149,31 @@ public class ServerModerator{
                 }
         }
 
-       try{
-        /*while (playersCount < MAX_PLAYERS){
-                Thread.sleep(1000);
-            }*/
-
+        // exits game
         System.out.println("Closing game...");
         System.exit(0);
-        } catch (Exception e) {
-            e.printStackTrace();    
-        }
-
     }
+
+    private static void cilentConnectionsCheck(){
+        // stop server execution if a client disconnected
+        for (PrintWriter clientStream : outgoingStreams){
+            clientStream.println("Testing connection");
+            if (clientStream.checkError()){
+                clientDisconnected = true;
+            }
+        }
+    } 
 
     // check for duplicate usernames
     public synchronized static boolean doubleUsername(String username){
+        // creates temp usernames in lowercase
+        ArrayList<String> lowercaseNames = new ArrayList<String>();
+        for (String name : usernames){
+            lowercaseNames.add(name.toLowerCase());
+        }
+
         // checks if client's username is already in use
-        if (usernames.contains(username)){
+        if (lowercaseNames.contains(username.toLowerCase())){
             return true;
         } else{
             // adds client's username to list of usernames if approved
@@ -218,7 +251,7 @@ public class ServerModerator{
         }
 
     // night state for server side
-    public static void serverNightState() {
+    public static void serverNightState() throws Exception {
         try {
             // signals server that night time has begun
             System.out.println("\nNight State has begun for players. Starting time limit for Mafia to elimate player...");
@@ -228,7 +261,13 @@ public class ServerModerator{
             try{
                 Thread.sleep(10000); // TODO: change timer to 30 - 60 seconds
             } catch (InterruptedException e){
-            e.printStackTrace();
+                e.printStackTrace();
+            }
+
+            // checks for disconnections
+                cilentConnectionsCheck();
+                if (clientDisconnected){
+                    throw new SocketException();
             }
 
             // once timer reaches, ends night time
@@ -253,9 +292,13 @@ public class ServerModerator{
             }
 
             // resets waiting room
-            exitWaitingState = false;
-        } catch(Exception e) {
-            e.printStackTrace();
+            exitWaitingState = false;     
+        } catch (SocketException e){
+            throw new Exception("One or more disconnections occured during player elimination. Closing game...");
+        } catch (InterruptedException e){
+            throw new Exception("Interrupted occurred during player elimination. Closing game...");
+        } catch (Exception e){
+            throw new Exception("An error occurred during player elimination. Closing game...");
         }
     }
 
@@ -269,81 +312,103 @@ public class ServerModerator{
     }
 
     // day state for server side
-    public static void serverDayState(){
-        // signals server to initate timer for chat discussion
-        System.out.println("\nDay State has begun for players. Starting time limit for discussion...");
-        gameState = "DAYSTATE";
+    public static void serverDayState() throws Exception{
+        try {
+            // global chat
+                // signals server to initate timer for chat discussion
+                System.out.println("\nDay State has begun for players. Starting time limit for discussion...");
+                gameState = "DAYSTATE";
 
-        // initates a timer for server to wait during client discussion
+                // initates a timer for server to wait during client discussion
+                Thread.sleep(10000); // TODO: change timer to 5 minutes
+
+                // checks for disconnections
+                if (clientDisconnected){
+                    throw new SocketException();
+                }
+        } catch (SocketException e){
+            throw new Exception("One or more disconnections occured during global discussion. Closing game...");
+        } catch (InterruptedException e){
+            throw new Exception("Interrupted occurred during server global discussion. Closing game...");
+        } catch (Exception e){
+            throw new Exception("An error occurred during global discussion. Closing game...");
+        }
+
         try{
-            Thread.sleep(10000); // TODO: change timer to 5 minutes
+            // global voting
+                // signals server timer hits 0 and initate for player voting
+                System.out.println("Timer reached zero. Move on to voting..");
+                votes = new int[MAX_PLAYERS];
+
+                // initiates a timer for server to wait during voting
+                Thread.sleep(11000);
+
+                // checks for disconnections
+                cilentConnectionsCheck();
+                if (clientDisconnected){
+                    throw new SocketException();
+                }
+
+                // calculating which player was the highest votes
+                highestVoteIndex = 0;
+                tieVote = false;
+                int highestVoteCount = 0;
+                System.out.println("Voting is over. Counting votes..");
+                for (int i = 0; i < MAX_PLAYERS; i++){
+                    if (votes[i] > highestVoteCount){
+                        highestVoteCount = votes[i];
+                        highestVoteIndex = i;
+                    }
+                }
+
+                // checks if more than two players tied in votes
+                int duplicateVote = 0;
+                for (int vote : votes){
+                    if (vote == highestVoteCount){
+                        duplicateVote ++;
+                    }
+                }
+                if (duplicateVote > 1){
+                    tieVote = true;
+                }
+
+                // changes highest voted player's status and role if no tied votes
+                if (tieVote == false){
+                    eliminatedPlayer(usernames.get(highestVoteIndex));
+                }
+
+                // displays updated information
+                System.out.println("\n--Game Information--");
+                System.out.println("List of players: " + usernames);
+                System.out.println("List of roles: " + roles);
+                System.out.println("List of statuses: " + statuses);
+
+                //resets game state
+                gameState = "";
+
+                
+                // removes all clients from waiting room
+                synchronized (GAME_LOCK) {
+                    GAME_LOCK.notifyAll();
+                }
+
+                // waiting state until all clients leave waiting room
+                while (playersCount > 0){
+                    Thread.sleep(1000);
+                }
+
+                // resets waiting room
+                exitWaitingState = false;
+
+                // checks for disconnections
+                cilentConnectionsCheck();  
+        } catch (SocketException e){
+            throw new Exception("One or more disconnections occured during voting. Closing game...");
         } catch (InterruptedException e){
-            e.printStackTrace();
+            throw new Exception("Interrupted occurred during voting. Closing game...");
+        } catch (Exception e){
+            throw new Exception("An error occurred during voting. Closing game...");
         }
-
-        // signals server timer hits 0 and initate for player voting
-        System.out.println("Time reached zero. Move on to voting..");
-        votes = new int[MAX_PLAYERS];
-
-        // initiates a timer for server to wait during voting
-         try{
-            Thread.sleep(11000);
-        } catch (InterruptedException e){
-            e.printStackTrace();
-        }
-
-        // calculating which player was the highest votes
-        highestVoteIndex = 0;
-        tieVote = false;
-        int highestVoteCount = 0;
-        System.out.println("Voting is over. Counting votes..");
-        for (int i = 0; i < MAX_PLAYERS; i++){
-            if (votes[i] > highestVoteCount){
-                highestVoteCount = votes[i];
-                highestVoteIndex = i;
-            }
-        }
-
-        // checks if more than two players tied in votes
-        int duplicateVote = 0;
-        for (int vote : votes){
-            if (vote == highestVoteCount){
-                duplicateVote ++;
-            }
-        }
-        if (duplicateVote > 1){
-            tieVote = true;
-        }
-
-        // changes highest voted player's status and role if no tied votes
-        if (tieVote == false){
-            eliminatedPlayer(usernames.get(highestVoteIndex));
-        }
-
-        // displays updated information
-        System.out.println("\n--Game Information--");
-        System.out.println("List of players: " + usernames);
-        System.out.println("List of roles: " + roles);
-        System.out.println("List of statuses: " + statuses);
-
-        gameState = "";
-
-        // removes all clients from waiting room
-        synchronized (GAME_LOCK) {
-            GAME_LOCK.notifyAll();
-        }
-
-        // waiting state until all clients leave waiting room
-        try{
-            while (playersCount > 0){
-                Thread.sleep(1000);
-            }  
-        } catch (InterruptedException e){
-
-        }
-
-        // resets waiting room
-        exitWaitingState = false;
     }
 
     // displays client message to other clients
