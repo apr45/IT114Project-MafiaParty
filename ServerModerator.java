@@ -11,7 +11,7 @@ public class ServerModerator{
     public static volatile boolean targetChoosen = false;
 
     // variables to keep track of number of players
-    public static final int MAX_PLAYERS = 3;
+    public static final int MAX_PLAYERS = 4;
     public static volatile int playerCount = 0;
 
     // lists to store player information
@@ -37,6 +37,9 @@ public class ServerModerator{
 
     // tracks for disconnections
     public static boolean clientDisconnected = false;
+
+    // tracks winning team
+    public static volatile String winner;
 
     public static void main(String[] args){
         try{
@@ -137,7 +140,7 @@ public class ServerModerator{
             // end game conditions
                 // checks if 2 or less players are alive
                 int countAlive = Collections.frequency(statuses, "Alive");
-                if (countAlive <= 2){
+                if (countAlive <= 2 || statuses.get(roles.indexOf("Mafia")).equals("Dead")){
                     // indicates the end of the game
                     gameState = "ENDSTATE";
 
@@ -153,15 +156,8 @@ public class ServerModerator{
         }
 
         // exits game
-        try{
-            while (playerCount > 0){
-                Thread.sleep(1000);
-            }
-            System.out.println("Closing game...");
-            System.exit(0);
-        } catch (InterruptedException e){
-
-        }
+        System.out.println("Closing game...");
+        System.exit(0);
     }
 
     // getters 
@@ -276,7 +272,11 @@ public class ServerModerator{
                 gameState = "DAYSTATE";
 
                 // initates a timer for server to wait during client discussion
-                Thread.sleep(20000);
+                int seconds = 0;
+                for (int i = 0; i < MAX_PLAYERS; i++){
+                    seconds += 1000;
+                }
+                Thread.sleep(20000 + seconds);
 
                 // checks for disconnections
                 if (clientDisconnected){
@@ -297,7 +297,11 @@ public class ServerModerator{
                 votes = new int[MAX_PLAYERS];
 
                 // initiates a timer for server to wait during voting
-                Thread.sleep(16000);
+                int seconds = 0;
+                for (int i = 0; i < MAX_PLAYERS; i++){
+                    seconds += 1000;
+                }
+                Thread.sleep(16000 + seconds);
 
                 // checks for disconnections
                 cilentConnectionsCheck();
@@ -342,7 +346,6 @@ public class ServerModerator{
                 //resets game state
                 gameState = "";
 
-                
                 // removes all clients from waiting room
                 synchronized (GAME_LOCK) {
                     GAME_LOCK.notifyAll();
@@ -372,15 +375,43 @@ public class ServerModerator{
             playerCount = MAX_PLAYERS;
 
             // calculates winning team
-            for (int i = 0; i < MAX_PLAYERS; i++){
-                if (winningTeam == 0) {
-                    outgoingStreams.get(i).println("Mafia wins!");
-                } else if (winningTeam == 1) {
-                    outgoingStreams.get(i).println("Civilians win!");
-                }
+            if (winningTeam == 0) {
+                winner = "Mafia";
+                System.out.println("Mafia wins!");
+            } else if (winningTeam == 1) {
+                winner = "Civilians";
+                System.out.println("Civilians win!");
+            }
+
+            // informs clients the game has ended and winning team
+            synchronized (GAME_LOCK) {
+                GAME_LOCK.notifyAll();
+            }
+
+             // waiting state until all clients leave waiting room
+             while (playerCount > 0){
+                Thread.sleep(1000);
             }
         } catch(Exception e) {
-            e.printStackTrace();
+            System.out.println("An error occurred during end game. Closing game...");
+        }
+    }
+
+    // displays the results after voting
+    public static void votingResults(String username){
+        // informs player based if there is a tie or not
+        if (tieVote == false){
+            // displays player with highest counts on votes
+            outgoingStreams.get(usernames.indexOf(username)).println("Most Voted Player: " + usernames.get(highestVoteIndex));
+            // reveals if player is Mafia or not
+            if (roles.get(highestVoteIndex).equals("Mafia")){
+                outgoingStreams.get(usernames.indexOf(username)).println(usernames.get(highestVoteIndex) + " is the Mafia.");
+            } else {
+                outgoingStreams.get(usernames.indexOf(username)).println(usernames.get(highestVoteIndex) + " is not the Mafia.");
+            }
+        } else {
+            outgoingStreams.get(usernames.indexOf(username)).println("Votes were tied.");
+            outgoingStreams.get(usernames.indexOf(username)).println("No player will be eliminated.");
         }
     }
 
@@ -467,27 +498,6 @@ public class ServerModerator{
         int index = usernames.indexOf(username);
         if (index != -1){
             votes[index] ++;
-        }
-    }
-
-    // displays the results after voting
-    public synchronized static void votingResults(){
-        // informs player based if there is a tie or not
-         for (int i = 0; i < MAX_PLAYERS; i ++){
-            if (tieVote == false){
-                // displays player with highest counts on votes
-                outgoingStreams.get(i).println("Most Voted Player: " + usernames.get(highestVoteIndex));
-
-                // reveals if player is Mafia or not
-                if (roles.get(highestVoteIndex).equals("Mafia")){
-                    outgoingStreams.get(i).println(usernames.get(highestVoteIndex) + " is the Mafia.");
-                } else {
-                    outgoingStreams.get(i).println(usernames.get(highestVoteIndex) + " is not the Mafia.");
-                }
-            } else {
-                outgoingStreams.get(i).println("Votes were tied.");
-                outgoingStreams.get(i).println("No player will be eliminated.");
-            }
         }
     }
 }

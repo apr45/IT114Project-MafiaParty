@@ -115,7 +115,24 @@ public class MafiaParticipant{
         // sets up GUI window for client side
             // window size and close operation
             gameWindow = new JFrame("Mafia Party (" + username + ")");
-            gameWindow.setSize(500,500);
+            gameWindow.setSize(400, 400);
+
+            // set game window location
+                    // gets screen dimensions to ensure game window opens within screen boundaries
+                    Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+                    int screenWidth = (int) screenSize.getWidth();
+                    int screenHeight = (int) screenSize.getHeight();
+                    int maxX = screenWidth - gameWindow.getWidth();
+                    int maxY = screenHeight - gameWindow.getHeight();
+
+                    // generates random x and y coordinates for game window location
+                    Random rand = new Random();
+                    int x = rand.nextInt(maxX);
+                    int y = rand.nextInt(maxY);
+
+                    // sets game window location to the random coordinates
+                    gameWindow.setLocation(x, y);
+
             gameWindow.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             gameWindow.addWindowListener(new WindowAdapter() {
                 public void windowClosing(WindowEvent e){
@@ -178,6 +195,7 @@ public class MafiaParticipant{
                 } else if (incomingText.equals("DAYSTATE")) {
                     clientDayState();
                 } else if (incomingText.equals("ENDSTATE")){
+                    endGameState();
                     break;
                 }
             } catch (SocketException e){ 
@@ -188,13 +206,6 @@ public class MafiaParticipant{
                 System.exit(0);
             }
         }
-
-        // endgame state
-        System.out.println("\nGame over!");
-        incomingText = incomingStream.readLine();
-        System.out.println(incomingText);
-        outgoingStream.println("");
-        gameWindow.dispose();
 
         // closes socket connection
         try{
@@ -210,7 +221,7 @@ public class MafiaParticipant{
     }
 
     // method to validate client's username input
-    public static boolean usernameValidation(String username) {
+    private static boolean usernameValidation(String username) {
         username = username.trim(); // remove leading and trailing whitespace
 
         // avoids empty usernames
@@ -321,8 +332,8 @@ public class MafiaParticipant{
         //chat room GUI
             // sets up seperate window for discussion
             JFrame chatroom = new JFrame();
-            chatroom.setSize(500,500);
-            chatroom.setLocationRelativeTo(null);
+            chatroom.setSize(350,350);
+            chatroom.setLocation(gameWindow.getX() + 25, gameWindow.getY() + 25);
             chatroom.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             JLabel chatHeader = new JLabel("Chat Room (" + username + ")");
             chatroom.add(chatHeader, BorderLayout.NORTH);
@@ -337,19 +348,19 @@ public class MafiaParticipant{
 
             // sets up field to text
             JPanel inputArea = new JPanel();
+            textInput = new JTextField("", 10);
             JLabel inputLine = new JLabel("Input:");
-
-                // prevents dead players from speaking
-                textInput = new JTextField("", 10);
-                if (status.equals("Dead")){
-                    textInput.setEditable(false);
-                }
-
             sendInput = new JButton("Sent");
             inputArea.add(inputLine);
             inputArea.add(textInput);
             inputArea.add(sendInput);
             chatroom.add(inputArea, BorderLayout.SOUTH);
+
+            // prevents dead players from speaking
+                if (status.equals("Dead")){
+                    sendInput.setEnabled(false);
+                    textInput.setEditable(false);
+                }
 
             // sets visibility of chatroom window
             chatroom.setVisible(true);
@@ -450,5 +461,14 @@ public class MafiaParticipant{
             outgoingStream.println(outgoingText);
             textInput.setText("");
         });
+    }
+
+    private static void endGameState() throws Exception{
+        // signals client the end of game and reveals winner
+        incomingText = incomingStream.readLine();
+        System.out.println("\n" + incomingText);
+        incomingText = incomingStream.readLine();
+        System.out.println(incomingText);
+        gameWindow.dispose();
     }
 }

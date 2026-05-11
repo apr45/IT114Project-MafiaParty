@@ -147,14 +147,24 @@ public class ClientHandler implements Runnable{
 
                     // informs client that voting is over and initiates results
                     outgoingStream.println("Voting Over!");
-                    ServerModerator.votingResults();
+                    ServerModerator.votingResults(username);
                     ServerModerator.updatePlayerCount("subtract");
                 } else if (ServerModerator.gameState.equals("ENDSTATE")) {
                     // informs client the current state 
                     outgoingStream.println(ServerModerator.gameState);
+
+                    // puts client in waiting room until end game results are revealed
+                    ServerModerator.clientWaitingRoom();
                     
                     // recieves signal to close bridge connection
-                    incomingStream.readLine();
+                    outgoingStream.println("Game over! Calculating results...");
+                    if (ServerModerator.winner.equals("Mafia")){
+                        outgoingStream.println("Mafia wins!");
+                    } else {
+                        outgoingStream.println("Civilians win!");
+                    }
+
+                    // subtracts player count to exit game
                     ServerModerator.updatePlayerCount("subtract");
                     break;
                 }

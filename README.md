@@ -24,9 +24,9 @@ To set up and run the Java application, follow these steps:
    Use the command `javac <filename>.java` to compile each Java file individually. Ensure each file creates a `.class` file.
 
 5. **Split the Terminal**
-   After compiling, split the terminal into four separate instances:
+   After compiling, split the terminal into five separate instances:
    * **One terminal** to run the server.
-   * **Three terminals** for client connections.
+   * **Four terminals** for client connections.
 
 6. **Run the Server**
    In the terminal designated for the server, type `java ServerModerator` to start the server. If the terminal displays the message `"Waiting for connection..."`, the server is successfully running.
@@ -35,7 +35,7 @@ To set up and run the Java application, follow these steps:
    In the remaining terminals set up for clients, enter the command `java MafiaParticipant` to connect them to the server. The server will provide feedback indicating whether each client successfully connected.
 
 8. **Start the Game**
-   The game will commence automatically once three players connect to the server and enter valid usernames.
+   The game will commence automatically once four players connect to the server and enter valid usernames.
 
 ---
 By following these steps, you will correctly set up and initiate the game environment.
