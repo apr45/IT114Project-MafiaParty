@@ -109,6 +109,9 @@ public class MafiaParticipant{
         } catch (IOException e){
             System.out.println("Server shut down during set up. Closing game...");
             System.exit(0);
+        } catch (Exception e){
+            System.out.println("Error occured during set up. Closing game...");
+            System.exit(0);
         }
 
 
@@ -195,7 +198,7 @@ public class MafiaParticipant{
                 } else if (incomingText.equals("DAYSTATE")) {
                     clientDayState();
                 } else if (incomingText.equals("ENDSTATE")){
-                    endGameState();
+                    clientEndGameState();
                     break;
                 }
             } catch (SocketException e){ 
@@ -463,12 +466,19 @@ public class MafiaParticipant{
         });
     }
 
-    private static void endGameState() throws Exception{
-        // signals client the end of game and reveals winner
-        incomingText = incomingStream.readLine();
-        System.out.println("\n" + incomingText);
-        incomingText = incomingStream.readLine();
-        System.out.println(incomingText);
-        gameWindow.dispose();
+    // end game state for the client side
+    private static void clientEndGameState() throws Exception{
+        try{
+            // signals client the end of game and reveals winner
+            incomingText = incomingStream.readLine();
+            System.out.println("\n" + incomingText);
+            incomingText = incomingStream.readLine();
+            System.out.println(incomingText);
+            gameWindow.dispose();
+        } catch (IOException e){
+            throw new Exception("Player disconnection during end game. Closing game...");
+        } catch (Exception e){
+            throw new Exception("Error occured during end game. Closing game...");
+        }
     }
 }

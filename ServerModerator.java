@@ -69,7 +69,8 @@ public class ServerModerator{
                 // runs client thread
                 clientThread.start();
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println("Error accepting client connection. Closing server...");
+                System.exit(0);
             }
         }
 
@@ -78,7 +79,7 @@ public class ServerModerator{
             serverSocket.close();
             System.out.println("Max number of players reached. No longer accepting connections.");
         } catch (IOException e){
-            System.out.println(e.getMessage());
+            System.out.println("Error closing server socket. Closing server...");
             System.exit(0);
         }
         
@@ -368,7 +369,7 @@ public class ServerModerator{
     }
 
     // determines winning team and display appropriate message to clients
-    private static void endGame(int winningTeam) {
+    private static void endGame(int winningTeam){
         try {
             // informs server that game is coming to an end
             System.out.println("\nWinning condition has been met. Calculating winning team...");
@@ -394,6 +395,7 @@ public class ServerModerator{
             }
         } catch(Exception e) {
             System.out.println("An error occurred during end game. Closing game...");
+            System.exit(0);
         }
     }
 
