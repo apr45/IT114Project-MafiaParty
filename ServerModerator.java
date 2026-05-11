@@ -9,11 +9,10 @@ public class ServerModerator{
     // variables to track data
     public static volatile String gameState = "";
     public static volatile boolean targetChoosen = false;
-    private static boolean exitWaitingState = false;
 
     // variables to keep track of number of players
-    public static final int MAX_PLAYERS = 2; // TODO: change max players to 5
-    public static volatile int playersCount = 0;
+    public static final int MAX_PLAYERS = 3;
+    public static volatile int playerCount = 0;
 
     // lists to store player information
     private static ArrayList<String> usernames = new ArrayList<String>();
@@ -36,6 +35,7 @@ public class ServerModerator{
     private static Socket clientSocket;
     private static ServerSocket serverSocket;
 
+    // tracks for disconnections
     public static boolean clientDisconnected = false;
 
     public static void main(String[] args){
@@ -52,7 +52,7 @@ public class ServerModerator{
         }
         
         // connects client to server until max number of players is reached
-        while (playersCount < MAX_PLAYERS) {
+        while (playerCount < MAX_PLAYERS) {
             try {
                 // waits for client connection
                 System.out.println("Waiting connection...");
@@ -60,8 +60,8 @@ public class ServerModerator{
 
                 // creates new thread to handle client connection
                 Thread clientThread = new Thread(new ClientHandler(clientSocket));
-                playersCount += 1;
-                System.out.println("Client " + playersCount + " connected.");
+                playerCount += 1;
+                System.out.println("Client " + playerCount + " connected.");
 
                 // runs client thread
                 clientThread.start();
@@ -81,7 +81,7 @@ public class ServerModerator{
         
         try {
             // waiting state until all clients set up information and enter waiting room
-            while (exitWaitingState == false){
+            while (usernames.size() != MAX_PLAYERS){
                 Thread.sleep(1000);
             }
 
@@ -89,6 +89,8 @@ public class ServerModerator{
             cilentConnectionsCheck();
             if (clientDisconnected){
                 throw new SocketException();
+            } else if (MAX_PLAYERS == 1){
+                throw new Exception("Can't start game with one player.");
             }
 
             // displays game information regarding players, roles, and statuses
@@ -103,12 +105,9 @@ public class ServerModerator{
             }
 
             // waiting state until all clients leave waiting room
-            while (playersCount > 0){
+            while (playerCount > 0){
                 Thread.sleep(1000);
             }
-
-            // resets waiting room
-            exitWaitingState = false;
         } catch (SocketException e){
             System.out.println("One or more disconnections occured during set up. Closing game...");
             System.exit(0);
@@ -116,7 +115,11 @@ public class ServerModerator{
             System.out.println("Interrupted occurred during set up. Closing game...");
             System.exit(0);
         } catch (Exception e){
-            System.out.println("An error occurred during set up. Closing game...");
+            if (MAX_PLAYERS == 1){
+                System.out.println(e.getMessage());
+            } else {
+                System.out.println("An error occurred during set up. Closing game...");
+            }
             System.exit(0);
         }
 
@@ -150,88 +153,24 @@ public class ServerModerator{
         }
 
         // exits game
-        System.out.println("Closing game...");
-        System.exit(0);
-    }
-
-    private static void cilentConnectionsCheck(){
-        // stop server execution if a client disconnected
-        for (PrintWriter clientStream : outgoingStreams){
-            clientStream.println("Testing connection");
-            if (clientStream.checkError()){
-                clientDisconnected = true;
+        try{
+            while (playerCount > 0){
+                Thread.sleep(1000);
             }
-        }
-    } 
+            System.out.println("Closing game...");
+            System.exit(0);
+        } catch (InterruptedException e){
 
-    // check for duplicate usernames
-    public synchronized static boolean doubleUsername(String username){
-        // creates temp usernames in lowercase
-        ArrayList<String> lowercaseNames = new ArrayList<String>();
-        for (String name : usernames){
-            lowercaseNames.add(name.toLowerCase());
-        }
-
-        // checks if client's username is already in use
-        if (lowercaseNames.contains(username.toLowerCase())){
-            return true;
-        } else{
-            // adds client's username to list of usernames if approved
-            usernames.add(username);
-            return false;
-        }        
-    }
-
-    // set up client information
-    public static synchronized String setup(BufferedReader incomingStream, PrintWriter outgoingStream){
-        // adds client's input and output streams to list of streams
-        incomingStreams.add(incomingStream);
-        outgoingStreams.add(outgoingStream);
-
-        // role assignment logic
-            // random number generator
-            Random rand = new Random();
-            int roleIndex = rand.nextInt(ROLELIST.length);;
-
-            // ensures Mafia role is assigned to one client
-            if (usernames.size() == MAX_PLAYERS && !roles.contains("Mafia")){
-                roles.add("Mafia");
-            } else {
-                if (roleIndex == 0 && !roles.contains("Mafia")){
-                    roles.add(ROLELIST[roleIndex]);
-                } else {
-                    roles.add(ROLELIST[1]);
-                }
-            }
-
-        // stores client's status in list of statuses
-        statuses.add("Alive");
-
-        // returns client's assigned role
-        return roles.get(roles.size()-1);
-    }
-
-    // manage clients in waiting room
-    public static void clientWaitingRoom() throws InterruptedException {
-        synchronized (GAME_LOCK) {
-            while (exitWaitingState == false){
-                // last player to join waiting room will notify server to exit waiting state
-                if (playersCount == MAX_PLAYERS){
-                    exitWaitingState = true;
-                }
-
-                // clients will wait until server signals all to exit waiting room
-                GAME_LOCK.wait();
-            }
         }
     }
 
-    // getters for username and status arraylists
+    // getters 
+        // gets an array of current players
         public static ArrayList<String> usernamesArrayList(){
             return usernames;
         }
 
-        // displays a list of players that are alive to Mafia only; update later to implement GUI 
+        // gets a list of players that are alive
         public static ArrayList<String> alivePlayersList(){
             ArrayList<String> alivePlayers = new ArrayList<String>();
 
@@ -246,28 +185,56 @@ public class ServerModerator{
             return alivePlayers;
         }
 
+        // gets an array of current players' statuses
         public static ArrayList<String> statusArrayList(){
             return statuses;
         }
 
+        // gets the status of a specific player
+        public static String getStatus(String username){
+            int index = usernames.indexOf(username);
+            return statuses.get(index);
+        }
+
+    // setters
+        // updates the player count
+            public synchronized static void updatePlayerCount(String operation){
+                if (operation.equals("add")){
+                    playerCount++;
+                } else if (operation.equals("subtract")){
+                    playerCount--;
+                }
+            }
+
+    // checks for client connection
+    private static void cilentConnectionsCheck(){
+        // stop server execution if a client disconnected
+        for (PrintWriter clientStream : outgoingStreams){
+            clientStream.println("Testing connection");
+            if (clientStream.checkError()){
+                clientDisconnected = true;
+            }
+        }
+    }
+
     // night state for server side
-    public static void serverNightState() throws Exception {
+    private static void serverNightState() throws Exception {
         try {
             // signals server that night time has begun
             System.out.println("\nNight State has begun for players. Starting time limit for Mafia to elimate player...");
             gameState = "NIGHTSTATE";
 
             // initates a timer for server to wait during player elimination
-            try{
-                Thread.sleep(10000); // TODO: change timer to 30 - 60 seconds
-            } catch (InterruptedException e){
-                e.printStackTrace();
+            int seconds = 0;
+            for (int i = 0; i < MAX_PLAYERS; i++){
+                seconds += 1000;
             }
-
+            Thread.sleep(9000 + seconds);
+            
             // checks for disconnections
-                cilentConnectionsCheck();
-                if (clientDisconnected){
-                    throw new SocketException();
+            cilentConnectionsCheck();
+            if (clientDisconnected){
+                throw new SocketException();
             }
 
             // once timer reaches, ends night time
@@ -279,20 +246,18 @@ public class ServerModerator{
             System.out.println("List of roles: " + roles);
             System.out.println("List of statuses: " + statuses);
 
+            // resets game state
             gameState = "";
 
             // removes all clients from waiting room
             synchronized (GAME_LOCK) {
                 GAME_LOCK.notifyAll();
             }
-
+            
             // waiting state until all clients leave waiting room
-            while (playersCount > 0){
+            while (playerCount > 0){
                 Thread.sleep(1000);
             }
-
-            // resets waiting room
-            exitWaitingState = false;     
         } catch (SocketException e){
             throw new Exception("One or more disconnections occured during player elimination. Closing game...");
         } catch (InterruptedException e){
@@ -302,17 +267,8 @@ public class ServerModerator{
         }
     }
 
-    // updates client's information based on Mafia's choice or highest vote count
-    public static void eliminatedPlayer(String username){
-        for (int i = 0; i < MAX_PLAYERS; i++){
-            if (usernames.get(i).equals(username)){
-                statuses.set(i, "Dead");
-            }
-        }
-    }
-
     // day state for server side
-    public static void serverDayState() throws Exception{
+    private static void serverDayState() throws Exception{
         try {
             // global chat
                 // signals server to initate timer for chat discussion
@@ -320,7 +276,7 @@ public class ServerModerator{
                 gameState = "DAYSTATE";
 
                 // initates a timer for server to wait during client discussion
-                Thread.sleep(10000); // TODO: change timer to 5 minutes
+                Thread.sleep(20000);
 
                 // checks for disconnections
                 if (clientDisconnected){
@@ -341,7 +297,7 @@ public class ServerModerator{
                 votes = new int[MAX_PLAYERS];
 
                 // initiates a timer for server to wait during voting
-                Thread.sleep(11000);
+                Thread.sleep(16000);
 
                 // checks for disconnections
                 cilentConnectionsCheck();
@@ -393,12 +349,9 @@ public class ServerModerator{
                 }
 
                 // waiting state until all clients leave waiting room
-                while (playersCount > 0){
+                while (playerCount > 0){
                     Thread.sleep(1000);
                 }
-
-                // resets waiting room
-                exitWaitingState = false;
 
                 // checks for disconnections
                 cilentConnectionsCheck();  
@@ -411,12 +364,96 @@ public class ServerModerator{
         }
     }
 
+    // determines winning team and display appropriate message to clients
+    private static void endGame(int winningTeam) {
+        try {
+            // informs server that game is coming to an end
+            System.out.println("\nWinning condition has been met. Calculating winning team...");
+            playerCount = MAX_PLAYERS;
+
+            // calculates winning team
+            for (int i = 0; i < MAX_PLAYERS; i++){
+                if (winningTeam == 0) {
+                    outgoingStreams.get(i).println("Mafia wins!");
+                } else if (winningTeam == 1) {
+                    outgoingStreams.get(i).println("Civilians win!");
+                }
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // check for duplicate usernames
+    public synchronized static boolean doubleUsername(String username){
+        // creates temp usernames in lowercase
+        ArrayList<String> lowercaseNames = new ArrayList<String>();
+        for (String name : usernames){
+            lowercaseNames.add(name.toLowerCase());
+        }
+
+        // checks if client's username is already in use
+        if (lowercaseNames.contains(username.toLowerCase())){
+            return true;
+        } else{
+            // adds client's username to list of usernames if approved
+            usernames.add(username);
+            return false;
+        }        
+    }
+
+    // set up client information
+    public static synchronized String setup(BufferedReader incomingStream, PrintWriter outgoingStream){
+        // adds client's input and output streams to list of streams
+        incomingStreams.add(incomingStream);
+        outgoingStreams.add(outgoingStream);
+
+        // role assignment logic
+            // random number generator
+            Random rand = new Random();
+            int roleIndex = rand.nextInt(ROLELIST.length);;
+
+            // ensures Mafia role is assigned to one client
+            if (usernames.size() == MAX_PLAYERS && !roles.contains("Mafia")){
+                roles.add("Mafia");
+            } else {
+                if (roleIndex == 0 && !roles.contains("Mafia")){
+                    roles.add(ROLELIST[roleIndex]);
+                } else {
+                    roles.add(ROLELIST[1]);
+                }
+            }
+
+        // stores client's status in list of statuses
+        statuses.add("Alive");
+
+        // returns client's assigned role
+        return roles.get(roles.size()-1);
+    }
+
+    // manage clients in waiting room
+    public static void clientWaitingRoom() throws InterruptedException {
+        synchronized (GAME_LOCK) {
+                // clients will wait until server signals all to exit waiting room
+                GAME_LOCK.wait();
+        }
+    }
+
+    // updates client's information based on Mafia's choice or highest vote count
+    public static void eliminatedPlayer(String username){
+        for (int i = 0; i < MAX_PLAYERS; i++){
+            if (usernames.get(i).equals(username)){
+                statuses.set(i, "Dead");
+            }
+        }
+    }
+
     // displays client message to other clients
     public synchronized static void broadcast(String username, String message){
         try {
             for (int i = 0; i < MAX_PLAYERS; i++){
                 // prevent the original sender to recieve message
-                if (!usernames.get(i).equals(username) /*&& statuses.get(i).equals("Alive")*/){
+                if (!usernames.get(i).equals(username)){
                     outgoingStreams.get(i).println(username + ": " + message);
                 } 
             }
@@ -451,27 +488,6 @@ public class ServerModerator{
                 outgoingStreams.get(i).println("Votes were tied.");
                 outgoingStreams.get(i).println("No player will be eliminated.");
             }
-        }
-    }
-
-    // determines winning team and display appropriate message to clients
-    public static void endGame(int winningTeam) {
-        try {
-            // informs server that game is coming to an end
-            System.out.println("\nWinning condition has been met. Calculating winning team...");
-
-            // calculates winning team
-            for (int i = 0; i < MAX_PLAYERS; i++){
-                if (!statuses.get(i).equals("Disconnected")){
-                    if (winningTeam == 0) {
-                        outgoingStreams.get(i).println("Mafia wins!");
-                    } else if (winningTeam == 1) {
-                        outgoingStreams.get(i).println("Civilians win!");
-                    }
-                }
-            }
-        } catch(Exception e) {
-            e.printStackTrace();
         }
     }
 }

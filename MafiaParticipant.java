@@ -87,7 +87,7 @@ public class MafiaParticipant{
                 } else if (incomingText.equals("VALID")){
                     break;
                 }  
-            } catch (IOException e){
+            } catch (Exception e){
                 System.out.println("Server shut down during set up. Closing game...");
                 System.exit(0);
             }    
@@ -136,13 +136,13 @@ public class MafiaParticipant{
                 playersPanel.setLayout(new GridLayout(usernameList.length, 1, 5, 0));
 
                 // resize icon images
-                aliveIcon = new ImageIcon("alive.png");
+                aliveIcon = new ImageIcon("images/alive.png");
                 Image image = aliveIcon.getImage();
                 Image resizedImage = image.getScaledInstance(25, 25, Image.SCALE_SMOOTH);
                 aliveIcon = new ImageIcon(resizedImage);
 
                     // later use
-                    deadIcon = new ImageIcon("dead.png");
+                    deadIcon = new ImageIcon("images/dead.png");
                     image = deadIcon.getImage();
                     resizedImage = image.getScaledInstance(25, 25, Image.SCALE_SMOOTH);
                     deadIcon = new ImageIcon(resizedImage);
@@ -180,6 +180,9 @@ public class MafiaParticipant{
                 } else if (incomingText.equals("ENDSTATE")){
                     break;
                 }
+            } catch (SocketException e){ 
+                System.out.println("Server disconnected. Closing game...");
+                System.exit(0);
             } catch (Exception e){
                 System.out.println(e.getMessage());
                 System.exit(0);
@@ -190,6 +193,7 @@ public class MafiaParticipant{
         System.out.println("\nGame over!");
         incomingText = incomingStream.readLine();
         System.out.println(incomingText);
+        outgoingStream.println("");
         gameWindow.dispose();
 
         // closes socket connection
@@ -304,7 +308,7 @@ public class MafiaParticipant{
             incomingText = incomingStream.readLine();
             System.out.println(incomingText);
         } catch (SocketException e){
-            throw new Exception("Server shut down during player elimination. Closing game...");
+            throw new Exception("Player disconnection during player elimination. Closing game...");
         }
     } 
 
@@ -312,6 +316,7 @@ public class MafiaParticipant{
     private static void clientDayState() throws Exception{
         // signals players that daytime has come and preps for dissussion time
         System.out.println("\nDay has dawned. Discuss who is the Mafia.");
+        String status = incomingStream.readLine();
 
         //chat room GUI
             // sets up seperate window for discussion
@@ -319,7 +324,7 @@ public class MafiaParticipant{
             chatroom.setSize(500,500);
             chatroom.setLocationRelativeTo(null);
             chatroom.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-            JLabel chatHeader = new JLabel("Chat Room");
+            JLabel chatHeader = new JLabel("Chat Room (" + username + ")");
             chatroom.add(chatHeader, BorderLayout.NORTH);
 
             // sets up area to showcase client text
@@ -333,7 +338,13 @@ public class MafiaParticipant{
             // sets up field to text
             JPanel inputArea = new JPanel();
             JLabel inputLine = new JLabel("Input:");
-            textInput = new JTextField("", 10);
+
+                // prevents dead players from speaking
+                textInput = new JTextField("", 10);
+                if (status.equals("Dead")){
+                    textInput.setEditable(false);
+                }
+
             sendInput = new JButton("Sent");
             inputArea.add(inputLine);
             inputArea.add(textInput);
@@ -344,7 +355,7 @@ public class MafiaParticipant{
             chatroom.setVisible(true);
 
         // sets timer and initates global chat room
-        timer = new javax.swing.Timer(10000, e ->{ 
+        timer = new javax.swing.Timer(20000, e ->{ 
             chatroom.dispose();
             outgoingStream.println("END");
         });
@@ -368,13 +379,13 @@ public class MafiaParticipant{
         JDialog playerVoting = votingPane.createDialog(gameWindow, "Player Voting");
 
         // set timer for voting
-        timer = new javax.swing.Timer(10000, e -> playerVoting.dispose());
+        timer = new javax.swing.Timer(15000, e -> playerVoting.dispose());
         timer.setRepeats(false);
         timer.start();
 
         // ensures GUI pane is available to client during timer run
         Object playerChoosen = "";
-        while (timer.isRunning()){
+        while (timer.isRunning() && status.equals("Alive")){
             playerVoting.setVisible(true);
 
             // closes pane and stops timer once client votes
@@ -406,7 +417,7 @@ public class MafiaParticipant{
             incomingText = incomingStream.readLine();
             System.out.println(incomingText);
         } catch (Exception e){
-            throw new Exception("Server shut down during global voting. Closing game...");
+            throw new Exception("Player disconnection during global voting. Closing game...");
         }
     }
     
@@ -424,7 +435,7 @@ public class MafiaParticipant{
                 }
             }
         } catch (IOException e) {
-            throw new Exception("Server shut down during global discussion. Closing game...");
+            throw new Exception("Player disconnection during global discussion. Closing game...");
         } catch (Exception e)   {
             throw new Exception("Error occured during global discussion. Closing game...");
         }
@@ -435,6 +446,7 @@ public class MafiaParticipant{
         // sents text from text field to server if button clicked
         sendInput.addActionListener(e ->{
             outgoingText = textInput.getText();
+            textArea.append(username + ": " + outgoingText + "\n");
             outgoingStream.println(outgoingText);
             textInput.setText("");
         });

@@ -14,6 +14,7 @@ public class ClientHandler implements Runnable{
     // client information
     private String username;
     private String role;
+    private String status;
 
     // clients information
     private ArrayList<String> usernames;
@@ -65,7 +66,7 @@ public class ClientHandler implements Runnable{
                 outgoingStream.println(role);
 
                 // resets player count
-                ServerModerator.playersCount--;
+                ServerModerator.updatePlayerCount("subtract");
 
             // night and day states
             while(true){
@@ -73,7 +74,7 @@ public class ClientHandler implements Runnable{
                     // informs client the current state and resends role
                     outgoingStream.println(ServerModerator.gameState);
                     outgoingStream.println(role);
-
+                    
                     if (role.equals("Mafia")){
                         //reveals list of Civilians alive to Mafia
                         usernames = ServerModerator.alivePlayersList();
@@ -84,7 +85,7 @@ public class ClientHandler implements Runnable{
                         ServerModerator.eliminatedPlayer(incomingText);
 
                         // puts Mafia into the waiting room after choosing player or timer run out
-                        ServerModerator.playersCount = ServerModerator.MAX_PLAYERS;
+                        ServerModerator.playerCount = ServerModerator.MAX_PLAYERS;
                         ServerModerator.clientWaitingRoom();
                     } else if (role.equals("Civilian")){
                         // puts client with "Civilian" roles in the waiting room
@@ -98,11 +99,13 @@ public class ClientHandler implements Runnable{
                     outgoingStream.println(statuses);
 
                     // indicates the end of night state
-                    ServerModerator.playersCount--;
+                    ServerModerator.updatePlayerCount("subtract");
                     outgoingStream.println("Night time has ended.");
                 } else if (ServerModerator.gameState.equals("DAYSTATE")){
                     // informs client the current state 
                     outgoingStream.println(ServerModerator.gameState);
+                    status = ServerModerator.getStatus(username);
+                    outgoingStream.println(status);
 
                     // handles recieving and transfering client messages
                     while (true){
@@ -123,47 +126,41 @@ public class ClientHandler implements Runnable{
                         }
                     }
                     
-                    try{
-                        // informs client to vote a from a list of alive players
-                        outgoingStream.println("Times up! Vote who you think is Mafia.");
-                        usernames = ServerModerator.alivePlayersList();
-                        outgoingStream.println(usernames);
+                    // informs client to vote a from a list of alive players
+                    outgoingStream.println("Times up! Vote who you think is Mafia.");
+                    usernames = ServerModerator.alivePlayersList();
+                    outgoingStream.println(usernames);
                     
-                        // recives player's vote and sends to server to add vote
-                        incomingText = incomingStream.readLine();
-                        ServerModerator.addVote(incomingText);
+                    // recives player's vote and sends to server to add vote
+                    incomingText = incomingStream.readLine();
+                    ServerModerator.addVote(incomingText);
 
-                        // puts client in waiting room until voting is over
-                        ServerModerator.playersCount++;
-                        ServerModerator.clientWaitingRoom();
+                    // puts client in waiting room until voting is over
+                    ServerModerator.updatePlayerCount("add");
+                    ServerModerator.clientWaitingRoom();
                         
-                        // reveals list of all players and their statuses
-                        usernames = ServerModerator.usernamesArrayList();
-                        statuses = ServerModerator.statusArrayList();
-                        outgoingStream.println(usernames);
-                        outgoingStream.println(statuses);
+                    // reveals list of all players and their statuses
+                    usernames = ServerModerator.usernamesArrayList();
+                    statuses = ServerModerator.statusArrayList();
+                    outgoingStream.println(usernames);
+                    outgoingStream.println(statuses);
 
-                        // informs client that voting is over and initiates results
-                        outgoingStream.println("Voting Over!");
-                        ServerModerator.votingResults();
-                        ServerModerator.playersCount--;
-                
-                    } catch (SocketException e){
-                        
-                    }
+                    // informs client that voting is over and initiates results
+                    outgoingStream.println("Voting Over!");
+                    ServerModerator.votingResults();
+                    ServerModerator.updatePlayerCount("subtract");
                 } else if (ServerModerator.gameState.equals("ENDSTATE")) {
                     // informs client the current state 
                     outgoingStream.println(ServerModerator.gameState);
                     
                     // recieves signal to close bridge connection
-                    ServerModerator.playersCount++;
+                    incomingStream.readLine();
+                    ServerModerator.updatePlayerCount("subtract");
                     break;
                 }
             }
-        } catch (IOException e){
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (Exception e){
+            e.getMessage();
         }
     }
 }
